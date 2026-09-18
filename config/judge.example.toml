@@ -1,0 +1,22 @@
+# Paths are relative to this configuration file; absolute paths are recommended.
+storage_root = "./data"
+runtime_root = "./run"
+workspace_root = "."
+container = true
+container_command = "podman"
+image = "localhost/agentic-judge-runtime:local"
+
+# Omit [languages] to use all built-in language recipes.
+# To customize, generate a complete configuration with init-config first.
+# API credentials are read from the environment, never stored with problems.
+# Each endpoint is the full request URL. AI is optional; local judging needs no API.
+# [providers.local]
+# kind = "ollama"
+# endpoint = "http://127.0.0.1:11434/api/chat"
+# model = "your-local-model"
+
+# [providers.remote]
+# kind = "openai-compatible"
+# endpoint = "https://your-provider.example/v1/chat/completions"
+# model = "your-model"
+# api_key_env = "JUDGE_AI_KEY"

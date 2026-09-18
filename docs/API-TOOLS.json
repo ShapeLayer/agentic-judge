@@ -1,0 +1,560 @@
+[
+  {
+    "description": "Read persisted validator positive/negative runs",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id"
+      ],
+      "type": "object"
+    },
+    "name": "validator_runs_list"
+  },
+  {
+    "description": "Discover source files and directories inside the configured workspace",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "name": "workspace_list"
+  },
+  {
+    "description": "Create a named test suite",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        },
+        "suite": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "suite"
+      ],
+      "type": "object"
+    },
+    "name": "suite_add"
+  },
+  {
+    "description": "Run the configured validator on valid or intentionally invalid input and record expected acceptance",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "expect_valid": {
+          "type": "string"
+        },
+        "input": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "input",
+        "expect_valid"
+      ],
+      "type": "object"
+    },
+    "name": "validator_run"
+  },
+  {
+    "description": "List local problems",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "name": "problems_list"
+  },
+  {
+    "description": "Create a problem with a general test suite",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "name"
+      ],
+      "type": "object"
+    },
+    "name": "problem_create"
+  },
+  {
+    "description": "Read statement HTML/Markdown, settings and readiness",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id"
+      ],
+      "type": "object"
+    },
+    "name": "problem_get"
+  },
+  {
+    "description": "Write one Markdown statement section",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "markdown": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "section": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "section",
+        "markdown"
+      ],
+      "type": "object"
+    },
+    "name": "statement_set"
+  },
+  {
+    "description": "Set a contiguous example input/output pair",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "type": "string"
+        },
+        "number": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "output": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "number",
+        "input",
+        "output"
+      ],
+      "type": "object"
+    },
+    "name": "example_set"
+  },
+  {
+    "description": "Update limits, checker, tags or validator",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "checker": {
+          "type": "string"
+        },
+        "memory_limit_mb": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "time_limit_ms": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "validator": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "problem_id"
+      ],
+      "type": "object"
+    },
+    "name": "settings_update"
+  },
+  {
+    "description": "Install a C++ testlib checker at ./evaluate/checker.cpp",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "source"
+      ],
+      "type": "object"
+    },
+    "name": "checker_set"
+  },
+  {
+    "description": "Create or revise a UUID answer, validator or generator; main changes regenerate outputs",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "answer_id": {
+          "type": "string"
+        },
+        "expected": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "main": {
+          "type": "boolean"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "language",
+        "source",
+        "expected"
+      ],
+      "type": "object"
+    },
+    "name": "answer_save"
+  },
+  {
+    "description": "List current UUID answers",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id"
+      ],
+      "type": "object"
+    },
+    "name": "answers_list"
+  },
+  {
+    "description": "Read immutable answer revisions",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "answer_id": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "answer_id"
+      ],
+      "type": "object"
+    },
+    "name": "answer_history"
+  },
+  {
+    "description": "Save input and regenerate main-solution outputs",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "type": "string"
+        },
+        "number": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "suite": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "suite",
+        "number",
+        "input"
+      ],
+      "type": "object"
+    },
+    "name": "test_put"
+  },
+  {
+    "description": "Read a test pair and current trust",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "number": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "suite": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "suite",
+        "number"
+      ],
+      "type": "object"
+    },
+    "name": "test_get"
+  },
+  {
+    "description": "Run a saved generator with argv and save its output as input",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "generator_id": {
+          "type": "string"
+        },
+        "number": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "suite": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "generator_id",
+        "suite",
+        "number"
+      ],
+      "type": "object"
+    },
+    "name": "generate"
+  },
+  {
+    "description": "Validate all inputs and regenerate outputs",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id"
+      ],
+      "type": "object"
+    },
+    "name": "regenerate"
+  },
+  {
+    "description": "Judge source text or a workspace-relative attached file",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "language"
+      ],
+      "type": "object"
+    },
+    "name": "submit"
+  },
+  {
+    "description": "Read submission attempts and per-test verdicts",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id"
+      ],
+      "type": "object"
+    },
+    "name": "submissions_list"
+  },
+  {
+    "description": "Judge a saved answer and compare its expected verdict",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "answer_id": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "answer_id"
+      ],
+      "type": "object"
+    },
+    "name": "test_run"
+  },
+  {
+    "description": "Independently review answer:<uuid> or test:<suite>:<number> without editing",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "target",
+        "provider"
+      ],
+      "type": "object"
+    },
+    "name": "ai_review"
+  },
+  {
+    "description": "Read only currently applicable AI opinions",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "target"
+      ],
+      "type": "object"
+    },
+    "name": "trust_get"
+  },
+  {
+    "description": "Read historical and current audit records",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id"
+      ],
+      "type": "object"
+    },
+    "name": "reviews_list"
+  },
+  {
+    "description": "Read UTF-8 source material inside the configured workspace",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "name": "workspace_read"
+  },
+  {
+    "description": "List available language recipes and configured AI providers",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "name": "capabilities"
+  }
+]

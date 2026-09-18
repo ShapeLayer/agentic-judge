@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<title>A+B — Agentic Judge</title>
+<script>try{const t=localStorage.getItem('aj.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/base.css">
+<link rel="stylesheet" href="../styles/components.css">
+<script type="module" src="../src/index.js"></script>
+</head>
+<body>
+<div class="app">
+  <aj-topbar crumbs='[{"label": "문제", "href": "index.html"}, {"label": "A+B"}]' badges='[{"label": "컨테이너 실행", "title": "judge.toml container=true · podman"}]'></aj-topbar>
+  <main class="main">
+    <div class="page-head">
+      <aj-problem-head><script type="application/json">{"manifest": {"id": "sum", "name": "A+B", "time_limit_ms": 1000, "memory_limit_mb": 256, "tags": ["math", "implementation"], "checker": "testlib:ncmp", "suites": ["general", "edge"]}}</script></aj-problem-head>
+      <aj-status kind="ok" title="✓ 채점 가능" detail="테스트 12 · generation <span class=&quot;mono&quot;>a91f…3c</span>" style="min-width:280px"><button class="btn sm" type="button">재생성</button></aj-status>
+    </div>
+
+    <aj-tabs><div class="tabs" role="tablist" aria-label="문제 페이지">
+      <button class="tab" role="tab" data-tab="statement" aria-controls="p-statement" aria-selected="true">문제</button>
+      <button class="tab" role="tab" data-tab="submit" aria-controls="p-submit">제출</button>
+      <button class="tab" role="tab" data-tab="results" aria-controls="p-results">채점 결과 <span class="count">5</span></button>
+      <button class="tab" role="tab" data-tab="settings" aria-controls="p-settings">채점 설정</button>
+    </div></aj-tabs>
+
+    <!-- 문제: 서버 problem_get.statements.*.html을 그대로 넣는다 -->
+    <section id="p-statement" role="tabpanel" tabindex="0">
+      <article class="prose">
+        <h2>문제</h2>
+        <p>두 정수 <math><mi>A</mi></math>와 <math><mi>B</mi></math>가 주어진다. <math><mi>A</mi><mo>+</mo><mi>B</mi></math>를 출력하시오.</p>
+        <p>단, 합이 <math><msup><mn>10</mn><mn>9</mn></msup></math>를 넘는 경우에도 정확히 출력해야 한다.</p>
+        <h2>입력</h2>
+        <p>첫째 줄에 <math><mi>A</mi></math>와 <math><mi>B</mi></math>가 공백으로 구분되어 주어진다.</p>
+        <math display="block"><mrow><mo>−</mo><msup><mn>10</mn><mn>9</mn></msup><mo>≤</mo><mi>A</mi><mo>,</mo><mi>B</mi><mo>≤</mo><msup><mn>10</mn><mn>9</mn></msup></mrow></math>
+        <h2>출력</h2>
+        <p>첫째 줄에 <math><mi>A</mi><mo>+</mo><mi>B</mi></math>를 출력한다.</p>
+        <h2>예제</h2>
+        <aj-example><script type="application/json">{"number": 1, "input": "2 3\n", "output": "5\n"}</script></aj-example>
+        <aj-example><script type="application/json">{"number": 2, "input": "1000000000 1000000000\n", "output": "2000000000\n"}</script></aj-example>
+        <h2>노트</h2>
+        <p>32비트 정수 범위를 넘을 수 있음에 유의한다. 지원하지 않는 LaTeX는 원문으로 표시된다: <span class="latex-raw">\xcancel{x}</span></p>
+      </article>
+    </section>
+
+    <!-- 제출 -->
+    <section id="p-submit" role="tabpanel" tabindex="0" hidden>
+      <div class="toolbar">
+        <aj-segment name="mode" label="제출 방식" value="editor"><button data-value="editor">에디터</button><button data-value="file">파일 첨부</button></aj-segment>
+        <span class="sep"></span>
+        <label class="row gap-2"><span class="xs muted">언어</span><select class="select" aria-label="언어"><option>cpp</option><option>c</option><option>rust</option><option selected>python</option><option>javascript</option><option>typescript</option><option>java</option><option>go</option><option>ruby</option><option>php</option><option>bash</option></select></label>
+        <span class="muted xs mono">main.py</span><span class="spacer"></span>
+        <span class="muted xs num">86 B / 4 MiB</span>
+        <button class="btn primary" type="button">제출</button>
+      </div>
+      <div data-panel-for="mode" data-panel="editor">
+        <aj-editor language="python" filename="main.py" dirty>import sys
+a, b = map(int, sys.stdin.readline().split())
+# 32-bit overflow is not a concern in Python
+print(a + b)
+</aj-editor>
+        <p class="faint xs" style="margin-top:var(--sp-2)">에디터 내용은 결과 탭으로 전환해도 유지됩니다. <kbd>⌘</kbd>+<kbd>Enter</kbd>로 제출합니다.</p>
+      </div>
+      <div data-panel-for="mode" data-panel="file" hidden><aj-dropzone accept=".cpp,.c,.rs,.py,.js,.ts,.java,.go,.rb,.php,.sh"></aj-dropzone></div>
+    </section>
+
+    <!-- 채점 결과 -->
+    <section id="p-results" role="tabpanel" tabindex="0" hidden>
+      <aj-submissions test-href="test.html?suite={suite}&n={number}" current-generation="a91f3c" open="d5a4f0a2-1c3e-4b8a-9f00-2a7d6e5c4b31"><script type="application/json">[{"id": "d5a4f0a2-1c3e-4b8a-9f00-2a7d6e5c4b31", "problem_id": "sum", "language": "python", "source": "", "created_at": 1789710720, "generation": "a91f3c", "verdict": "WA", "trust": {"valid": 2, "invalid": 0, "uncertain": 1, "errors": 0}, "cases": [{"suite": "general", "number": 1, "result": {"verdict": "AC", "time_ms": 12, "memory_kb": 9113, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens", "trust": {"valid": 1}}, {"suite": "general", "number": 2, "result": {"verdict": "AC", "time_ms": 11, "memory_kb": 9113, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 3, "result": {"verdict": "AC", "time_ms": 12, "memory_kb": 9120, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 4, "result": {"verdict": "AC", "time_ms": 12, "memory_kb": 9120, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 5, "result": {"verdict": "AC", "time_ms": 13, "memory_kb": 9120, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 6, "result": {"verdict": "AC", "time_ms": 12, "memory_kb": 9120, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 7, "result": {"verdict": "WA", "time_ms": 13, "memory_kb": 9216, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "wrong answer 1st numbers differ - expected: '-2000000000', found: '2000000000'", "trust": {"valid": 1, "uncertain": 1}}, {"suite": "general", "number": 8, "result": {"verdict": "AC", "time_ms": 12, "memory_kb": 9120, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 9, "result": {"verdict": "AC", "time_ms": 12, "memory_kb": 9120, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "edge", "number": 1, "result": {"verdict": "AC", "time_ms": 14, "memory_kb": 9200, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "edge", "number": 2, "result": {"verdict": "AC", "time_ms": 14, "memory_kb": 9200, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "edge", "number": 3, "result": {"verdict": "WA", "time_ms": 41, "memory_kb": 9523, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "wrong answer 1st numbers differ - expected: '0', found: '-0'"}]}, {"id": "1b7e9c0d-5a2f-4d1e-8c3b-7f6e5d4c3b2a", "problem_id": "sum", "language": "cpp", "source": "", "created_at": 1789710000, "generation": "a91f3c", "verdict": "CE", "cases": [{"suite": "", "number": 0, "result": {"verdict": "CE", "time_ms": 0, "memory_kb": 0, "stdout": "", "stderr": "main.cpp:4:12: error: expected ';' before 'return'\n    4 |     cin >> a >> b\n      |            ^\n      |            ;", "exit_code": 1}, "checker_message": ""}]}, {"id": "7c02aa19-3e4f-4a5b-9c6d-8e7f6a5b4c3d", "problem_id": "sum", "language": "cpp", "source": "", "created_at": 1789709460, "generation": "88abe0", "verdict": "AC", "cases": [{"suite": "general", "number": 1, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 2, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 3, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 4, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 5, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 6, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 7, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 8, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 9, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "edge", "number": 1, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "edge", "number": 2, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "edge", "number": 3, "result": {"verdict": "AC", "time_ms": 3, "memory_kb": 1640, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}]}, {"id": "e3f1d2b8-7a6b-4c5d-8e9f-0a1b2c3d4e5f", "problem_id": "sum", "language": "python", "source": "", "created_at": 1789708800, "generation": "88abe0", "verdict": "TLE", "cases": [{"suite": "general", "number": 1, "result": {"verdict": "AC", "time_ms": 30, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 2, "result": {"verdict": "AC", "time_ms": 30, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 3, "result": {"verdict": "AC", "time_ms": 30, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 4, "result": {"verdict": "AC", "time_ms": 30, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 5, "result": {"verdict": "AC", "time_ms": 30, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 6, "result": {"verdict": "AC", "time_ms": 30, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 7, "result": {"verdict": "AC", "time_ms": 30, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 8, "result": {"verdict": "AC", "time_ms": 30, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 9, "result": {"verdict": "AC", "time_ms": 30, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "edge", "number": 1, "result": {"verdict": "TLE", "time_ms": 1000, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": ""}, {"suite": "edge", "number": 2, "result": {"verdict": "TLE", "time_ms": 1000, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": ""}, {"suite": "edge", "number": 3, "result": {"verdict": "TLE", "time_ms": 1000, "memory_kb": 10342, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": ""}]}, {"id": "0a9b4c77-9d8e-4f0a-b1c2-d3e4f5a6b7c8", "problem_id": "sum", "language": "rust", "source": "", "created_at": 1789708680, "generation": "88abe0", "verdict": "CHECKER_ERROR", "cases": [{"suite": "general", "number": 1, "result": {"verdict": "AC", "time_ms": 2, "memory_kb": 1100, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 2, "result": {"verdict": "AC", "time_ms": 2, "memory_kb": 1100, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 3, "result": {"verdict": "AC", "time_ms": 2, "memory_kb": 1100, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "ok 1 tokens"}, {"suite": "general", "number": 4, "result": {"verdict": "CHECKER_ERROR", "time_ms": 2, "memory_kb": 1100, "stdout": "", "stderr": "", "exit_code": 0}, "checker_message": "FAIL checker crashed: exit code 3 (_fail)"}]}]</script></aj-submissions>
+      <p class="faint xs" style="margin-top:var(--sp-3)">verdict는 글리프·약어·설명(title)으로 전달되며 색은 보조 신호입니다. 메모리 0은 “측정 불가”로 표기합니다.</p>
+    </section>
+
+    <!-- 채점 설정 -->
+    <section id="p-settings" role="tabpanel" tabindex="0" hidden>
+      <div class="settings-layout">
+        <aj-subnav current="basic"><script type="application/json">[{"id": "basic", "label": "기본 정보"}, {"id": "statements", "label": "Statements"}, {"id": "answers", "label": "Answers", "count": 4}, {"id": "validator", "label": "Validator"}, {"id": "generator", "label": "Generator"}, {"id": "checker", "label": "Checker"}, {"id": "tests", "label": "Tests", "count": 12}, {"id": "testruns", "label": "Test runs"}, {"id": "ai", "label": "AI", "count": "?1", "badge": "warn"}]</script></aj-subnav>
+        <section class="stack">
+          <div class="card" id="s-basic"><div class="card-head">1. 기본 정보<span class="spacer"></span><button class="btn sm" type="button">저장</button></div><div class="card-body stack-sm">
+            <div class="form-grid">
+              <div class="field"><label for="f-name">제목</label><input id="f-name" class="input" value="A+B"></div>
+              <div class="field"><label for="f-tl">시간 제한 (ms)</label><input id="f-tl" class="input mono num" value="1000"><span class="hint">변경 시 generation이 바뀌어 답안이 만료됩니다.</span></div>
+              <div class="field"><label for="f-ml">메모리 제한 (MB)</label><input id="f-ml" class="input mono num" value="256"></div>
+              <div class="field"><label for="f-tags">태그</label><input id="f-tags" class="input" value="math, implementation"></div>
+            </div>
+            <div class="field"><label>Suite</label><div class="row wrap"><span class="tag">general</span><span class="tag">edge</span><button class="btn ghost sm" type="button">+ suite 추가</button></div></div>
+          </div></div>
+
+          <div class="card" id="s-statements"><div class="card-head">2. Statements<span class="spacer"></span><aj-segment name="stmt" label="섹션" small value="legend"><button data-value="legend">legend</button><button data-value="input">input</button><button data-value="output">output</button><button data-value="notes">notes</button></aj-segment><button class="btn sm primary" type="button">저장</button></div><div class="card-body stack-sm">
+            <div class="split">
+              <aj-editor language="Markdown" min-height="200px" dirty>두 정수 $A$와 $B$가 주어진다. $A + B$를 출력하시오.
+
+단, 합이 $10^9$를 넘는 경우에도 정확히 출력해야 한다.
+</aj-editor>
+              <div class="preview prose" aria-label="미리보기"><p>두 정수 <math><mi>A</mi></math>와 <math><mi>B</mi></math>가 주어진다. <math><mi>A</mi><mo>+</mo><mi>B</mi></math>를 출력하시오.</p><p>단, 합이 <math><msup><mn>10</mn><mn>9</mn></msup></math>를 넘는 경우에도 정확히 출력해야 한다.</p></div>
+            </div>
+            <p class="xs faint">미리보기는 서버 렌더(pulldown-cmark + MathML)와 동일한 정화 규칙을 사용합니다. 지원하지 않는 LaTeX는 원문으로 보입니다.</p>
+            <div class="row between"><span class="small strong">예시 쌍 <span class="muted num">2</span></span><button class="btn sm" type="button">+ 예시 3 추가</button></div>
+            <aj-example><script type="application/json">{"number": 1, "input": "2 3\n", "output": "5\n"}</script></aj-example>
+          </div></div>
+
+          <div class="card" id="s-answers"><div class="card-head">3. Answers<span class="spacer"></span><button class="btn sm primary" type="button">+ 답안 추가</button></div><aj-answers answer-href="answer.html?id={id}" main="3f9c1e2a-7b0d-4e21-9c55-1f2a8d3e6b90" validator="5b60f3ad-0000-4000-8000-000000000003"><script type="application/json">[{"id": "3f9c1e2a-7b0d-4e21-9c55-1f2a8d3e6b90", "revision": 3, "language": "cpp", "expected": "AC", "created_at": 1789709460, "trust": {"valid": 2, "uncertain": 1}}, {"id": "a17d40b5-0000-4000-8000-000000000001", "revision": 1, "language": "python", "expected": "AC", "created_at": 1789707720, "trust": {"valid": 1}}, {"id": "c8e2d9f1-0000-4000-8000-000000000002", "revision": 2, "language": "cpp", "expected": "WA", "created_at": 1789707300, "trust": {"invalid": 1}, "note": "의도된 실패 미관찰"}, {"id": "5b60f3ad-0000-4000-8000-000000000003", "revision": 1, "language": "cpp", "expected": "AC", "created_at": 1789706400}]</script></aj-answers>
+            <div class="card-body"><aj-status kind="warn" title="⚠ 마지막 저장 후 재생성 실패" detail="general/7: main solution exited 1 (RE)"><button class="btn sm" type="button">로그</button><button class="btn sm" type="button">재시도</button></aj-status></div></div>
+
+          <div class="card" id="s-validator"><div class="card-head">4. Validator<span class="spacer"></span><button class="btn sm" type="button">해제</button><button class="btn sm primary" type="button">연결 저장</button></div><div class="card-body stack-sm">
+            <div class="form-grid">
+              <div class="field"><label for="f-val">validator answer</label><select id="f-val" class="select mono"><option>5b60f3ad · cpp · r1</option><option>(없음)</option></select><span class="hint">testlib validator 코드는 Answers에서 편집(answer_save)하고 여기서 연결(settings_update)합니다.</span></div>
+              <div class="field"><label>상태</label><div class="row"><span class="badge ok">연결됨</span><span class="xs muted">변경 시 모든 테스트 generation이 비워집니다.</span></div></div>
+            </div>
+            <span class="small strong">검사 실행</span>
+            <div class="split">
+              <div class="field"><label for="f-vin">입력</label><textarea id="f-vin" class="textarea mono" rows="3">3 abc
+</textarea></div>
+              <div class="field"><label>기대</label><div class="col gap-2"><label class="check"><input type="radio" name="ev" checked> 유효한 입력 (승인 기대)</label><label class="check"><input type="radio" name="ev"> 무효한 입력 (거부 기대)</label><button class="btn" type="button" style="align-self:flex-start">validator_run</button></div></div>
+            </div>
+            <aj-validator-runs><script type="application/json">[{"created_at": 1789709460, "expect_valid": false, "accepted": false, "matched": true, "input": "3 abc\n", "result": {"stderr": "FAIL Expected integer, but \"abc\" found (line 1)"}}, {"created_at": 1789709400, "expect_valid": true, "accepted": true, "matched": true, "input": "-1000000000 1000000000\n", "result": {"stderr": ""}}, {"created_at": 1789709340, "expect_valid": false, "accepted": true, "matched": false, "input": "1 2 3\n", "result": {"stderr": ""}}]</script></aj-validator-runs>
+          </div></div>
+
+          <div class="card" id="s-generator"><div class="card-head">5. Generator<span class="spacer"></span><button class="btn sm primary" type="button">generate</button></div><div class="card-body stack-sm">
+            <div class="form-grid">
+              <div class="field"><label for="f-gen">generator answer</label><select id="f-gen" class="select mono"><option>9e12c4a0 · cpp · r2</option></select></div>
+              <div class="field"><label for="f-seed">seed</label><input id="f-seed" class="input mono num" value="7"></div>
+              <div class="field"><label for="f-suite">대상 suite</label><select id="f-suite" class="select mono"><option>general</option><option>edge</option></select></div>
+              <div class="field"><label for="f-num">대상 순번</label><input id="f-num" class="input mono num" value="10"><span class="hint">기존 번호를 지정하면 덮어씁니다.</span></div>
+            </div>
+            <div class="field"><label>argv</label><aj-argv data='["--n","1","--max","1000000000"]'></aj-argv><span class="hint">인수는 배열로 전달됩니다. 공백이 포함된 인수도 하나의 항목이며 shell 문자열로 합치지 않습니다.</span></div>
+            <aj-status kind="ok" title="✓ 마지막 생성" detail="general/9 ← 9e12c4a0 r2 [--n 1 --seed 7] · validator 통과 · 출력 생성됨"><a class="btn sm" href="test.html">테스트 보기</a></aj-status>
+          </div></div>
+
+          <div class="card" id="s-checker"><div class="card-head">6. Checker<span class="spacer"></span><button class="btn sm primary" type="button">저장</button></div><div class="card-body stack-sm">
+            <div class="options" role="radiogroup" aria-label="체커 종류">
+              <label class="option"><input type="radio" name="ck"><span><span class="t">tokens</span><br><span class="d">공백 무시 토큰 비교</span></span></label>
+              <label class="option"><input type="radio" name="ck"><span><span class="t">exact</span><br><span class="d">바이트 단위 일치</span></span></label>
+              <label class="option"><input type="radio" name="ck"><span><span class="t">lines</span><br><span class="d">줄 단위 비교(후행 공백 무시)</span></span></label>
+              <label class="option"><input type="radio" name="ck" checked><span><span class="t">testlib 내장</span><br><span class="d">ncmp · wcmp · fcmp · rcmp9 …</span></span></label>
+              <label class="option"><input type="radio" name="ck"><span><span class="t">custom C++</span><br><span class="d mono">./evaluate/checker.cpp</span></span></label>
+            </div>
+            <div class="form-grid"><div class="field"><label for="f-ck">내장 체커</label><select id="f-ck" class="select mono"><option>testlib:ncmp</option><option>testlib:wcmp</option><option>testlib:fcmp</option><option>testlib:rcmp9</option><option>testlib:yesno</option></select><span class="hint">capabilities.checkers 목록</span></div></div>
+            <aj-kv><script type="application/json">[["종료 코드", {"html": "<span class=\"mono\">0 _ok</span> → AC · <span class=\"mono\">1 _wa</span> → WA · <span class=\"mono\">2 _pe</span> → PE · <span class=\"mono\">3 _fail</span> 및 그 외 → CHECKER_ERROR(시스템 오류, 사용자 오답과 분리)"}], ["인수", {"mono": "checker <input> <output> <answer>"}]]</script></aj-kv>
+          </div></div>
+
+          <div class="card" id="s-tests"><div class="card-head">7. Tests<span class="spacer"></span><select class="select" aria-label="suite" style="height:22px;font-size:var(--fs-xs)"><option>general (9)</option><option>edge (3)</option></select><button class="btn sm" type="button">수동 입력</button><button class="btn sm" type="button">생성</button><button class="btn sm" type="button">전체 재생성</button></div><aj-tests test-href="test.html?suite={suite}&n={number}"><script type="application/json">[{"suite": "general", "number": 1, "preview": "2 3", "generation": "a91f3c", "validation_status": "accepted", "trust": {"valid": 1}}, {"suite": "general", "number": 2, "preview": "1000000000 1000000000", "generation": "a91f3c", "validation_status": "accepted"}, {"suite": "general", "number": 3, "preview": "-5 5", "generation": "a91f3c", "validation_status": "accepted", "origin": {"generator_id": "9e12c4a0-0000-4000-8000-000000000009", "revision": 2, "args": ["--n", "1", "--seed", "7"]}, "trust": {"valid": 1, "uncertain": 1}}, {"suite": "general", "number": 7, "preview": "-1000000000 -1000000000", "generation_error": "RE", "validation_status": "accepted", "origin": {"generator_id": "9e12c4a0-0000-4000-8000-000000000009", "revision": 2, "args": []}}, {"suite": "general", "number": 9, "preview": "3 abc", "validation_status": "FAIL Expected integer"}]</script></aj-tests></div>
+
+          <div class="card" id="s-testruns"><div class="card-head">8. Test runs<span class="spacer"></span><button class="btn sm" type="button">모두 실행</button></div><aj-test-runs><script type="application/json">[{"answer_id": "3f9c1e2a", "revision": 3, "expected": "AC", "actual": "AC", "passed": 12, "total": 12}, {"answer_id": "c8e2d9f1", "revision": 2, "expected": "WA", "actual": "AC", "passed": 12, "total": 12, "note": "의도한 실패가 관찰되지 않았습니다. 테스트 보강이 필요합니다."}, {"answer_id": "7de0b21c", "revision": 1, "expected": "TLE", "actual": "TLE", "passed": 4, "total": 12, "note": "시간 의존 결과이며 현재 런타임에서만 유효합니다."}]</script></aj-test-runs></div>
+
+          <div class="card" id="s-ai"><div class="card-head">9. AI<span class="spacer"></span><select class="select" aria-label="프로바이더" style="height:22px;font-size:var(--fs-xs)"><option>local (ollama)</option><option>remote (openai-compatible)</option></select><button class="btn sm" type="button">answer:3f9c1e2a 검사</button></div><div class="card-body">
+            <div class="row between" style="margin-bottom:var(--sp-3)"><span class="small">현재 fingerprint <span class="mono faint">4d0e…9a</span></span><aj-trust valid="2" invalid="0" uncertain="1" errors="0" historical="3"></aj-trust></div>
+            <aj-opinion status="valid" provider="remote" requested-model="gpt-class-2026" response-model="gpt-class-2026" rev="3" at="14:33">정수 범위 −2·10⁹ ≤ A+B ≤ 2·10⁹는 64비트 long long으로 처리되며, 입력 파싱과 출력 형식이 statement와 일치합니다.</aj-opinion>
+            <aj-opinion status="uncertain" provider="local" requested-model="qwen-coder-local" rev="3" at="14:33" direction="validator에 줄 끝 개행 정확성 검사(inf.readEoln())를 추가할지 검토합니다.">음수 입력에서 앞뒤 공백을 포함한 형식이 명세되어 있지 않아 validator가 이를 거부하는지 확인이 필요합니다.</aj-opinion>
+            <aj-opinion status="invalid" provider="remote" rev="2" at="13:58" stale>int 오버플로 가능성 (rev 2 기준).</aj-opinion>
+          </div></div>
+        </section>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

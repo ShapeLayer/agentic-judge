@@ -1,0 +1,7 @@
+FROM docker.io/library/debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    g++ gcc libc6-dev rustc python3 nodejs node-typescript default-jdk-headless \
+    golang-go ruby php-cli bash ca-certificates && rm -rf /var/lib/apt/lists/*
+ENV HOME=/tmp GOCACHE=/tmp/go-cache GOPATH=/tmp/go-path
+WORKDIR /work
+USER 65534:65534

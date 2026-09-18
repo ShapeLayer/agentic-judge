@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<title>general/7 — A+B — Agentic Judge</title>
+<script>try{const t=localStorage.getItem('aj.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/base.css">
+<link rel="stylesheet" href="../styles/components.css">
+<script type="module" src="../src/index.js"></script>
+</head>
+<body>
+<div class="app">
+  <aj-topbar crumbs='[{"label": "문제", "href": "index.html"}, {"label": "A+B", "href": "problem.html"}, {"label": "tests", "href": "problem.html?tab=settings"}, {"label": "general/7", "mono": true}]' badges='[]'></aj-topbar>
+  <main class="main">
+    <div class="page-head">
+      <div class="col gap-2">
+        <h1>테스트 <span class="mono">general/7</span></h1>
+        <div class="meta"><span><span class="k">출처 </span><span class="v">generator <span class="mono">9e12c4a0</span> r2 · args <span class="mono">--n 1 --seed 7</span></span></span><span><span class="k">generation </span><span class="v mono">a91f…3c</span></span><span><span class="k">입력 해시 </span><span class="v mono">7be3…10</span></span></div>
+      </div>
+      <div class="row gap-2"><aj-ws-toggle for="aj-pane"></aj-ws-toggle><button class="btn sm" type="button">다운로드</button><a class="btn sm" href="problem.html?tab=settings">← 설정</a></div>
+    </div>
+    <div class="row wrap gap-4" style="margin-bottom:var(--sp-5)">
+      <span class="badge ok">생성됨</span><span class="badge ok">validator 통과 · <span class="mono">5b60f3ad</span> r1</span>
+      <aj-trust valid="1" invalid="0" uncertain="1" errors="0"></aj-trust>
+      <span class="badge warn">제출 <span class="mono">d5a4f0a2</span> 기준 스냅샷 · 현재 테스트와 동일</span>
+    </div>
+    <div class="io-grid three">
+      <aj-pane title="입력" copy ws tall>-1000000000 -1000000000
+</aj-pane>
+      <aj-pane title="기대 출력" copy ws tall>-2000000000
+</aj-pane>
+      <aj-pane title="제출 출력" verdict="WA" copy ws tall>2000000000
+</aj-pane>
+    </div>
+    <div class="io-grid" style="margin-top:var(--sp-4)">
+      <div class="card"><div class="card-head">실행 결과</div><div class="card-body"><aj-kv><script type="application/json">[["verdict", {"verdict": "WA"}], ["시간", "13 ms / 1000 ms"], ["메모리", "9.0 MB / 256 MB"], ["exit code", "0"], ["checker", {"mono": "testlib:ncmp → exit 1 (_wa)"}], ["message", "wrong answer 1st numbers differ - expected: '-2000000000', found: '2000000000'"], ["stderr", {"faint": "(없음)"}]]</script></aj-kv></div></div>
+      <div class="card"><div class="card-head">Validator 근거</div><div class="card-body"><aj-kv><script type="application/json">[["validator", {"mono": "5b60f3ad r1 (cpp)"}], ["결과", {"html": "<span class=\"badge ok\">통과</span> exit 0"}], ["stderr", {"faint": "(없음)"}], ["검사 시각", "2026-09-18 14:31"]]</script></aj-kv></div></div>
+    </div>
+    <div class="card" style="margin-top:var(--sp-4)">
+      <div class="card-head">AI 검증 <span class="faint">test:general:7 · fingerprint <span class="mono">c02a…7f</span></span><span class="spacer"></span><button class="btn sm" type="button">검사 실행</button></div>
+      <div class="card-body">
+        <aj-opinion status="valid" provider="remote" requested-model="gpt-class-2026" response-model="gpt-class-2026-0901" at="14:35">입력이 제약 −10⁹ ≤ A, B ≤ 10⁹의 하한 경계에 해당하며, 기대 출력 −2·10⁹는 정확합니다.</aj-opinion>
+        <aj-opinion status="uncertain" provider="local" requested-model="qwen-coder-local" at="14:35" direction="출력 설명에 개행 규칙을 명시하거나 checker를 tokens 기반으로 유지할 것을 확인합니다.">계산은 단순하나 기대 출력의 부호 표기와 후행 개행이 statement에서 명시되지 않았습니다.</aj-opinion>
+        <p class="xs faint" style="margin-top:var(--sp-3)">정해에 대한 AI 의견만으로 이 테스트를 “검증됨”으로 표시하지 않습니다. 위 의견은 이 테스트 자체를 대상으로 한 기록입니다. <a href="#">이력 2건</a></p>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

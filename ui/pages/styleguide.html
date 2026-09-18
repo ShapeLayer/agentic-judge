@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<title>스타일 가이드 — Agentic Judge</title>
+<script>try{const t=localStorage.getItem('aj.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/base.css">
+<link rel="stylesheet" href="../styles/components.css">
+<style>
+  .sw { display:grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: var(--sp-3); }
+  .sw div { border: 1px solid var(--c-border); border-radius: var(--radius-md); padding: var(--sp-3); font-size: var(--fs-xs); }
+  .sw i { display:block; height: 28px; border-radius: var(--radius-sm); margin-bottom: var(--sp-2); border: 1px solid var(--c-border-subtle); }
+  .demo { display:flex; flex-wrap:wrap; gap: var(--sp-3); align-items:center; }
+  h2.g { font-size: var(--fs-xl); font-weight: var(--fw-semibold); margin: var(--sp-8) 0 var(--sp-4); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--c-border); }
+  h2.g:first-of-type { margin-top: 0; }
+  .api { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--c-fg-muted); margin-bottom: var(--sp-3); }
+</style>
+<script type="module" src="../src/index.js"></script>
+</head>
+<body>
+<div class="app">
+  <aj-topbar crumbs='[{"label": "스타일 가이드"}]' badges='[]'></aj-topbar>
+  <main class="main narrow">
+    <p class="small muted" style="margin-bottom:var(--sp-5)">페이지: <a href="index.html">문제 목록</a> · <a href="problem.html">문제</a> · <a href="test.html">테스트</a> · <a href="answer.html">답안</a>. 모든 컴포넌트는 Light DOM이며 전역 토큰 CSS를 그대로 사용합니다.</p>
+
+    <h2 class="g">색상 토큰</h2>
+    <div class="sw"><div><i style="background:var(--c-bg)"></i>--c-bg</div><div><i style="background:var(--c-bg-subtle)"></i>--c-bg-subtle</div><div><i style="background:var(--c-bg-muted)"></i>--c-bg-muted</div><div><i style="background:var(--c-bg-inset)"></i>--c-bg-inset</div><div><i style="background:var(--c-border)"></i>--c-border</div><div><i style="background:var(--c-border-strong)"></i>--c-border-strong</div><div><i style="background:var(--c-fg)"></i>--c-fg</div><div><i style="background:var(--c-fg-muted)"></i>--c-fg-muted</div><div><i style="background:var(--c-fg-faint)"></i>--c-fg-faint</div><div><i style="background:var(--c-accent)"></i>--c-accent</div><div><i style="background:var(--c-ok)"></i>--c-ok</div><div><i style="background:var(--c-warn)"></i>--c-warn</div><div><i style="background:var(--c-err)"></i>--c-err</div><div><i style="background:var(--c-info)"></i>--c-info</div><div><i style="background:var(--c-system)"></i>--c-system</div></div>
+
+    <h2 class="g">&lt;aj-verdict&gt;</h2>
+    <p class="api">code="AC|WA|PE|RE|TLE|MLE|CE|CHECKER_ERROR|PENDING" size="lg" label</p>
+    <div class="demo"><aj-verdict code="AC"></aj-verdict><aj-verdict code="WA"></aj-verdict><aj-verdict code="PE"></aj-verdict><aj-verdict code="RE"></aj-verdict><aj-verdict code="TLE"></aj-verdict><aj-verdict code="MLE"></aj-verdict><aj-verdict code="CE"></aj-verdict><aj-verdict code="CHECKER_ERROR"></aj-verdict><aj-verdict code="PENDING"></aj-verdict></div>
+    <div class="demo" style="margin-top:var(--sp-3)"><aj-verdict code="AC" size="lg"></aj-verdict><aj-verdict code="WA" size="lg"></aj-verdict><aj-verdict code="TLE" size="lg"></aj-verdict></div>
+
+    <h2 class="g">&lt;aj-trust&gt; · 배지 · 태그</h2>
+    <p class="api">valid invalid uncertain errors historical — 현재 fingerprint 개수만, 퍼센트 없음</p>
+    <div class="demo"><aj-trust valid="2" invalid="0" uncertain="1" errors="0" historical="3"></aj-trust><aj-trust valid="1"></aj-trust><aj-trust></aj-trust>
+      <span class="badge">기본</span><span class="badge ok">✓ ok</span><span class="badge warn">⚠ warn</span><span class="badge err">✗ err</span><span class="badge info">info</span><span class="badge system">system</span><span class="badge plain">plain</span><span class="tag">dp</span><span class="tag">segment tree</span></div>
+
+    <h2 class="g">&lt;aj-status&gt; · &lt;aj-banner&gt;</h2>
+    <p class="api">aj-status kind="ok|warn|err|info" title detail (자식 = 동작 버튼) · aj-banner message note → 'retry' 이벤트</p>
+    <div class="stack-sm">
+      <aj-status kind="ok" title="✓ 채점 가능" detail="테스트 12"></aj-status>
+      <aj-status kind="warn" title="⚠ 답안 만료" detail="정해 리비전 변경으로 generation이 일치하지 않습니다."><button class="btn sm">재생성</button></aj-status>
+      <aj-status kind="err" title="✗ validator 거부" detail="general/9: FAIL Expected integer"><button class="btn sm">테스트 보기</button></aj-status>
+      <aj-status kind="info" title="정해 없음" detail="Answers에서 정해를 지정하면 답안이 생성됩니다."><button class="btn sm">Answers</button></aj-status>
+      <aj-banner message="HTTP 400 · problem not found: &quot;sum&quot;">submissions_list 실패</aj-banner>
+      <aj-banner message="remote: connection refused" note="로컬 채점과 문제 조회는 계속 가능합니다.">AI 프로바이더 연결 실패</aj-banner>
+      <aj-status kind="info" title="채점 중…" detail="동기 API이므로 완료까지 버튼이 비활성화됩니다. 연결이 끊기면 재전송 전에 목록을 확인합니다."><button class="btn sm busy" disabled>제출</button></aj-status>
+    </div>
+
+    <h2 class="g">&lt;aj-pane&gt; · &lt;aj-example&gt; · &lt;aj-ws-toggle&gt;</h2>
+    <p class="api">aj-pane title copy ws tall verdict size (본문 = 원문) · aj-example number input output · aj-ws-toggle for="selector"</p>
+    <div class="row" style="margin-bottom:var(--sp-3)"><aj-ws-toggle for="#sg-panes aj-pane"></aj-ws-toggle></div>
+    <div class="io-grid" id="sg-panes"><aj-pane title="입력" copy ws>3
+1 2	3
+</aj-pane><aj-pane title="제출 출력" verdict="PE" copy>6 
+</aj-pane></div>
+    <aj-example number="1" input="2 3&#10;" output="5&#10;"></aj-example>
+
+    <h2 class="g">&lt;aj-opinion&gt; — 모델 표시 규칙</h2>
+    <p class="api">status provider requested-model response-model at rev stale direction (본문 = rationale)</p>
+    <aj-opinion status="valid" provider="remote" requested-model="m-a" response-model="m-a" at="14:33">응답 모델과 요청 모델이 같으면 응답 모델만 표시합니다.</aj-opinion>
+    <aj-opinion status="uncertain" provider="remote" requested-model="m-a" response-model="m-a-0901" at="14:33" direction="예시 수정 방향입니다.">응답 모델이 요청 모델과 다르면 둘 다 표시합니다.</aj-opinion>
+    <aj-opinion status="invalid" provider="local" requested-model="m-local" at="14:33">응답 모델이 없으면 요청 모델을 표시하고 “응답 모델 정보가 제공되지 않았습니다.”를 안내합니다.</aj-opinion>
+    <aj-opinion status="error" provider="remote" at="14:20">두 필드가 모두 없는 과거 기록은 “모델 정보가 기록되지 않았습니다.”로 표시하며 현재 설정으로 추정하지 않습니다.</aj-opinion>
+    <aj-opinion status="invalid" provider="remote" rev="2" at="13:58" stale>과거 리비전 의견은 점선·70%로 표시하고 집계에서 제외합니다.</aj-opinion>
+
+    <h2 class="g">&lt;aj-editor&gt; · &lt;aj-dropzone&gt; · &lt;aj-segment&gt;</h2>
+    <p class="api">aj-editor language filename dirty readonly min-height (value 속성, 'change' 이벤트; Monaco가 .editor-body를 대체) · aj-dropzone accept max-bytes → 'file' · aj-segment name value small → 'change', [data-panel-for=name] 토글</p>
+    <aj-segment name="sg" value="editor" style="display:block;margin-bottom:var(--sp-3)"><button data-value="editor">에디터</button><button data-value="file">파일 첨부</button></aj-segment>
+    <div data-panel-for="sg" data-panel="editor"><aj-editor language="cpp" filename="main.cpp" min-height="140px" dirty>#include &lt;iostream&gt;
+int main() { long long a, b; std::cin &gt;&gt; a &gt;&gt; b; std::cout &lt;&lt; a + b; } // 42
+</aj-editor></div>
+    <div data-panel-for="sg" data-panel="file" hidden><aj-dropzone></aj-dropzone></div>
+
+    <h2 class="g">&lt;aj-argv&gt; · 옵션 카드 · 입력</h2>
+    <p class="api">aj-argv data='[…]' → 'change' (string[]) · Enter 추가, 빈 입력에서 Backspace 제거</p>
+    <aj-argv data='["--n","1 000"]'></aj-argv>
+    <div class="options" style="margin-top:var(--sp-3)"><label class="option"><input type="radio" name="o" checked><span><span class="t">tokens</span><br><span class="d">공백 무시 토큰 비교</span></span></label><label class="option"><input type="radio" name="o"><span><span class="t">custom C++</span><br><span class="d mono">./evaluate/checker.cpp</span></span></label></div>
+    <div class="form-grid" style="margin-top:var(--sp-4)">
+      <div class="field"><label>텍스트</label><input class="input" value="A+B"></div>
+      <div class="field"><label>숫자</label><input class="input mono" value="1000"><span class="hint">밀리초</span></div>
+      <div class="field"><label>선택</label><select class="select"><option>cpp</option><option>python</option></select></div>
+      <div class="field"><label>오류</label><input class="input invalid" value="abc"><span class="error">정수여야 합니다.</span></div>
+    </div>
+    <div class="demo" style="margin-top:var(--sp-4)"><button class="btn primary">Primary</button><button class="btn">Default</button><button class="btn ghost">Ghost</button><button class="btn danger">Danger</button><button class="btn" disabled>Disabled</button><button class="btn busy" disabled>채점 중</button><button class="btn sm">Small</button></div>
+
+    <h2 class="g">&lt;aj-submissions&gt; (빈 상태) · 스켈레톤 · &lt;aj-diff&gt; · &lt;aj-kv&gt;</h2>
+    <p class="api">aj-submissions test-href current-generation open (JSON = Submission[]) → 'view-code' · aj-tests · aj-answers · aj-test-runs · aj-validator-runs · aj-revisions · aj-problem-list(정렬·필터·500개 페이지, aj-pager) · aj-problem-head · aj-subnav · aj-topbar · aj-tabs</p>
+    <aj-submissions></aj-submissions>
+    <div class="table-wrap" style="margin-top:var(--sp-3)"><table class="table"><thead><tr><th>제출 시각</th><th>ID</th><th>Verdict</th></tr></thead><tbody><tr><td><div class="skeleton" style="width:110px"></div></td><td><div class="skeleton" style="width:64px"></div></td><td><div class="skeleton" style="width:40px"></div></td></tr></tbody></table></div>
+    <div class="io-grid" style="margin-top:var(--sp-3)"><div class="card"><aj-diff>@@ -1,2 +1,2 @@
+-    int a, b;
++    long long a, b;
+     cin &gt;&gt; a &gt;&gt; b;</aj-diff></div><div class="card"><div class="card-body"><aj-kv><script type="application/json">[["verdict", {"verdict": "WA"}], ["시간", "13 ms / 1000 ms"], ["checker", {"mono": "testlib:ncmp"}], ["stderr", {"faint": "(없음)"}]]</script></aj-kv></div></div></div>
+
+    <h2 class="g">타이포그래피</h2>
+    <div class="prose"><h2>섹션 제목 (prose h2)</h2><p>본문 14px / 1.6. 인라인 코드 <code>inf.readInt()</code>, 수식 <math><msup><mi>n</mi><mn>2</mn></msup></math>, 링크 <a href="#">testlib</a>.</p><math display="block"><mrow><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msub><mi>a</mi><mi>i</mi></msub><mo>≤</mo><msup><mn>10</mn><mn>9</mn></msup></mrow></math></div>
+    <p class="xs faint" style="margin-top:var(--sp-6)">UI 13px · 보조 12px · 캡션 11px · 페이지 제목 16px · 문제명 20px. 행 높이 28px, 컨트롤 26px, 상단바 36px.</p>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<title>문제 — Agentic Judge</title>
+<script>try{const t=localStorage.getItem('aj.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/base.css">
+<link rel="stylesheet" href="../styles/components.css">
+<script type="module" src="../src/index.js"></script>
+</head>
+<body>
+<div class="app">
+  <aj-topbar crumbs='[{"label": "문제"}]' badges='[{"label": "컨테이너 실행", "title": "judge.toml container=true · podman"}, {"label": "AI 2", "title": "AI 프로바이더 2개 연결됨"}]'></aj-topbar>
+  <main class="main">
+    <div class="row between" style="margin-bottom:var(--sp-2)">
+      <h1 class="section-title">문제</h1>
+      <button class="btn primary" type="button">새 문제</button>
+    </div>
+    <!-- 실제 구현: problems_list 응답을 el.data에 넣는다. 목업은 아래 스크립트가 1,234개를 생성한다. -->
+    <aj-problem-list id="list" href="problem.html?id={id}" page-size="500" sync-url></aj-problem-list>
+    <p class="faint xs" style="margin-top:var(--sp-3)">정렬·필터·페이지는 클라이언트에서 처리하며 상태는 URL 쿼리에 남습니다. 준비 상태는 서버 <code>ready</code> 값만 표시합니다.</p>
+  </main>
+</div>
+<script type="module">
+  // 결정적 목업 데이터 (seeded PRNG). 손으로 쓴 4개 + 생성 1,230개.
+  const seed = [
+    { manifest: { id: 'sum', name: 'A+B', time_limit_ms: 1000, memory_limit_mb: 256, tags: ['math', 'implementation'] }, ready: true, test_count: 12, submission_count: 7 },
+    { manifest: { id: 'lis', name: '가장 긴 증가 부분 수열', time_limit_ms: 2000, memory_limit_mb: 512, tags: ['dp', 'binary search'] }, ready: false, reason: { kind: 'warn', text: '답안 만료 · 정해 변경' }, test_count: 34, submission_count: 3 },
+    { manifest: { id: 'range-sum', name: '구간 합 질의', time_limit_ms: 1500, memory_limit_mb: 256, tags: ['segment tree'] }, ready: false, reason: { kind: 'none', text: '테스트 없음' }, test_count: 0, submission_count: 0 },
+    { manifest: { id: 'tree-diam', name: '트리 지름', time_limit_ms: 1000, memory_limit_mb: 256, tags: ['tree', 'dfs'] }, ready: false, reason: { kind: 'err', text: 'validator 거부 · general/7' }, test_count: 20, submission_count: 1 },
+  ];
+  let x = 20260918; const rnd = () => (x = (x * 1103515245 + 12345) % 2147483648) / 2147483648; const pick = a => a[Math.floor(rnd() * a.length)];
+  const TAGS = ['dp', 'greedy', 'graph', 'tree', 'math', 'string', 'binary search', 'segment tree', 'dfs', 'bfs', 'implementation', 'geometry', 'number theory', 'two pointers', 'flow'];
+  const NAMES = ['구간', '최소', '최대', '경로', '부분', '수열', '그래프', '문자열', '행렬', '트리', '집합', '점', '선분', '게임', '배열'];
+  const SUF = ['합', '거리', '개수', '질의', '분할', '탐색', '복원', '변환', '순회', '연결'];
+  const reasons = [{ kind: 'warn', text: '답안 만료 · 제한 변경' }, { kind: 'none', text: '정해 없음' }, { kind: 'none', text: '테스트 없음' }, { kind: 'err', text: '생성 실패 · RE' }, { kind: 'err', text: 'validator 거부' }];
+  const gen = Array.from({ length: 1230 }, (_, i) => {
+    const ready = rnd() < 0.62; const tags = [...new Set([pick(TAGS), rnd() < 0.5 ? pick(TAGS) : null].filter(Boolean))];
+    return { manifest: { id: `p${String(i + 1).padStart(4, '0')}`, name: `${pick(NAMES)} ${pick(SUF)} ${i + 1}`, time_limit_ms: pick([500, 1000, 1000, 2000, 3000]), memory_limit_mb: pick([128, 256, 256, 512, 1024]), tags }, ready, reason: ready ? undefined : pick(reasons), test_count: Math.floor(rnd() * 60), submission_count: Math.floor(rnd() * 30) };
+  });
+  document.getElementById('list').data = [...seed, ...gen];
+</script>
+</body>
+</html>
