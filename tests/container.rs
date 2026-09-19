@@ -1,6 +1,6 @@
 use agentic_judge::{model::Config, runtime::Runtime};
 #[test]
-#[ignore = "requires Podman and the prebuilt localhost/agentic-judge-runtime:local image"]
+#[ignore = "requires Podman and the versioned image from agentic-judge runtime-install"]
 fn podman_limits_and_languages() {
     let dir = tempfile::tempdir().unwrap();
     let rt = Runtime {
@@ -36,6 +36,15 @@ fn podman_limits_and_languages() {
         assert_eq!(r.verdict, "AC", "{language}: {}", r.stderr);
         assert_eq!(r.stdout.trim(), "42");
     }
+    let p = rt
+        .prepare(
+            "python",
+            "import resource; print(*resource.getrlimit(resource.RLIMIT_FSIZE))",
+        )
+        .unwrap();
+    let r = rt.run(&p, "", &[], 10000, 128).unwrap();
+    assert_eq!(r.verdict, "AC", "{}", r.stderr);
+    assert_eq!(r.stdout.trim(), "16777216 16777216");
     let p = rt
         .prepare("python", "x=bytearray(256*1024*1024); print(len(x))")
         .unwrap();

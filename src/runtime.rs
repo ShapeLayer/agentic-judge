@@ -136,14 +136,16 @@ impl Runtime {
         let local = !self.config.container;
         unsafe {
             cmd.pre_exec(move || {
-                let file_limit = libc::rlimit {
-                    rlim_cur: 16 * 1024 * 1024,
-                    rlim_max: 16 * 1024 * 1024,
-                };
-                if libc::setrlimit(libc::RLIMIT_FSIZE, &file_limit) != 0 {
-                    return Err(std::io::Error::last_os_error());
-                }
+                // Podman must be free to copy large image layers during user-ID remapping.
+                // Container workloads get their file limit from --ulimit above.
                 if local {
+                    let file_limit = libc::rlimit {
+                        rlim_cur: 16 * 1024 * 1024,
+                        rlim_max: 16 * 1024 * 1024,
+                    };
+                    if libc::setrlimit(libc::RLIMIT_FSIZE, &file_limit) != 0 {
+                        return Err(std::io::Error::last_os_error());
+                    }
                     #[cfg(target_os = "linux")]
                     {
                         let mem = libc::rlimit {
@@ -259,4 +261,79 @@ fn copy_tree(from: &Path, to: &Path) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn container_engine_can_create_large_storage_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = dir.path().join("engine");
+        fs::write(
+            &engine,
+            r#"#!/bin/sh
+case "$1" in
+    run)
+        case " $* " in
+            *" --ulimit fsize=16777216:16777216 "*) ;;
+            *) exit 2 ;;
+        esac
+        cd "$(dirname "$0")" || exit 3
+        exec dd if=/dev/zero of=layer bs=1048576 count=17
+        ;;
+    inspect) echo false ;;
+    rm) exit 0 ;;
+esac
+"#,
+        )
+        .unwrap();
+        fs::set_permissions(&engine, fs::Permissions::from_mode(0o700)).unwrap();
+        let rt = Runtime {
+            config: Config {
+                container: true,
+                container_command: engine.to_str().unwrap().into(),
+                ..Config::default()
+            },
+        };
+        let result = rt
+            .execute(dir.path(), &["true".into()], "", 10000, 128)
+            .unwrap();
+        assert_eq!(result.verdict, "AC", "{}", result.stderr);
+        assert_eq!(
+            fs::metadata(dir.path().join("layer")).unwrap().len(),
+            17 * 1024 * 1024
+        );
+    }
+
+    #[test]
+    fn local_workload_still_has_file_size_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let rt = Runtime {
+            config: Config {
+                container: false,
+                ..Config::default()
+            },
+        };
+        let result = rt
+            .execute(
+                dir.path(),
+                &[
+                    "sh".into(),
+                    "-c".into(),
+                    "exec dd if=/dev/zero of=output bs=1048576 count=17".into(),
+                ],
+                "",
+                10000,
+                128,
+            )
+            .unwrap();
+        assert_eq!(result.verdict, "RE");
+        assert_eq!(
+            fs::metadata(dir.path().join("output")).unwrap().len(),
+            16 * 1024 * 1024
+        );
+    }
 }
