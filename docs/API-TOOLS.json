@@ -1,5 +1,83 @@
 [
   {
+    "description": "Restore a draft scoped to this workspace (or scratch session), problem and language",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "language"
+      ],
+      "type": "object"
+    },
+    "name": "draft_get"
+  },
+  {
+    "description": "Persist a solving draft without judging or changing reference answers",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "language",
+        "source"
+      ],
+      "type": "object"
+    },
+    "name": "draft_save"
+  },
+  {
+    "description": "Import document metadata, statements and examples from Polygon or BOJ archive within workspace",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "memory_limit_mb": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "path": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "time_limit_ms": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "problem_id",
+        "path"
+      ],
+      "type": "object"
+    },
+    "name": "problem_import"
+  },
+  {
     "description": "Read persisted validator positive/negative runs",
     "inputSchema": {
       "additionalProperties": false,
