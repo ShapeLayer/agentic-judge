@@ -332,14 +332,53 @@ fn installed_http_serves_embedded_app_and_preserves_boundaries() {
     let response = client.get(&archive_url).send().unwrap();
     assert!(response.status().is_success());
     assert_eq!(response.headers()["content-type"], "application/zip");
-    assert_eq!(response.headers()["content-disposition"], "attachment; filename=\"export-problem.zip\"");
+    assert_eq!(
+        response.headers()["content-disposition"],
+        "attachment; filename=\"export-problem.zip\""
+    );
     let bytes = response.bytes().unwrap();
     assert_eq!(&bytes[..2], b"PK");
     let import_url = format!("{url}/api/archive?kind=problem&problem_id=restored");
-    assert!(client.post(&import_url).header("Content-Type", "application/zip").body(bytes.to_vec()).send().unwrap().status().is_success());
-    assert_eq!(client.post(&import_url).header("Content-Type", "application/zip").body(bytes.to_vec()).send().unwrap().status(), 400);
-    assert_eq!(client.get(&archive_url).header("Origin", "https://evil.example").send().unwrap().status(), 400);
-    assert_eq!(client.post(&import_url).header("Content-Type", "application/zip").header("Origin", "https://evil.example").body(bytes.to_vec()).send().unwrap().status(), 400);
+    assert!(
+        client
+            .post(&import_url)
+            .header("Content-Type", "application/zip")
+            .body(bytes.to_vec())
+            .send()
+            .unwrap()
+            .status()
+            .is_success()
+    );
+    assert_eq!(
+        client
+            .post(&import_url)
+            .header("Content-Type", "application/zip")
+            .body(bytes.to_vec())
+            .send()
+            .unwrap()
+            .status(),
+        400
+    );
+    assert_eq!(
+        client
+            .get(&archive_url)
+            .header("Origin", "https://evil.example")
+            .send()
+            .unwrap()
+            .status(),
+        400
+    );
+    assert_eq!(
+        client
+            .post(&import_url)
+            .header("Content-Type", "application/zip")
+            .header("Origin", "https://evil.example")
+            .body(bytes.to_vec())
+            .send()
+            .unwrap()
+            .status(),
+        400
+    );
     let download = format!("{url}/api/draft-download?problem_id=export&language=python");
     let response = client.get(&download).send().unwrap();
     assert!(response.status().is_success());

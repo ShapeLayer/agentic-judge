@@ -508,35 +508,101 @@ pub fn serve_with_options(engine: Engine, addr: &str, open: bool) -> Result<()> 
         if request.url().starts_with("/api/archive?") {
             let result = (|| -> Result<(Vec<u8>, bool, String)> {
                 if let Some(origin) = request.headers().iter().find(|h| h.field.equiv("Origin")) {
-                    ensure!(origin.value.as_str() == format!("http://{addr}"), "cross-origin request rejected");
+                    ensure!(
+                        origin.value.as_str() == format!("http://{addr}"),
+                        "cross-origin request rejected"
+                    );
                 }
                 let url = reqwest::Url::parse(&format!("http://{addr}{}", request.url()))?;
                 let q: std::collections::HashMap<_, _> = url.query_pairs().into_owned().collect();
                 let kind = q.get("kind").context("kind required")?;
                 let id = q.get("problem_id").context("problem_id required")?;
                 let suite = q.get("suite").map(String::as_str).unwrap_or("");
-                let number = q.get("number").map(|s| s.parse::<u64>()).transpose()?.unwrap_or(0);
+                let number = q
+                    .get("number")
+                    .map(|s| s.parse::<u64>())
+                    .transpose()?
+                    .unwrap_or(0);
                 if request.method() == &tiny_http::Method::Get {
                     let data = engine.export_archive(kind, id, suite, number)?;
-                    return Ok((data, true, format!("{id}-{kind}{}{}.zip", if suite.is_empty() { String::new() } else { format!("-{suite}") }, if number == 0 { String::new() } else { format!("-{number}") })));
+                    return Ok((
+                        data,
+                        true,
+                        format!(
+                            "{id}-{kind}{}{}.zip",
+                            if suite.is_empty() {
+                                String::new()
+                            } else {
+                                format!("-{suite}")
+                            },
+                            if number == 0 {
+                                String::new()
+                            } else {
+                                format!("-{number}")
+                            }
+                        ),
+                    ));
                 }
-                ensure!(request.method() == &tiny_http::Method::Post, "use GET or POST");
-                ensure!(request.headers().iter().any(|h| h.field.equiv("Content-Type") && h.value.as_str() == "application/zip"), "ZIP content type required");
+                ensure!(
+                    request.method() == &tiny_http::Method::Post,
+                    "use GET or POST"
+                );
+                ensure!(
+                    request
+                        .headers()
+                        .iter()
+                        .any(|h| h.field.equiv("Content-Type")
+                            && h.value.as_str() == "application/zip"),
+                    "ZIP content type required"
+                );
                 let mut bytes = Vec::new();
-                request.as_reader().take(crate::archive::LIMIT as u64 + 1).read_to_end(&mut bytes)?;
+                request
+                    .as_reader()
+                    .take(crate::archive::LIMIT as u64 + 1)
+                    .read_to_end(&mut bytes)?;
                 let result = engine.import_archive(&bytes, kind, id, suite, number)?;
                 Ok((serde_json::to_vec(&result)?, false, String::new()))
             })();
             let response = match result {
                 Ok((bytes, download, filename)) => {
-                    let mut r = tiny_http::Response::from_data(bytes).with_header(tiny_http::Header::from_bytes("Content-Type", if download { "application/zip" } else { "application/json" }).unwrap());
-                    if download { r = r.with_header(tiny_http::Header::from_bytes("Content-Disposition", format!("attachment; filename=\"{filename}\"")).unwrap()); }
+                    let mut r = tiny_http::Response::from_data(bytes).with_header(
+                        tiny_http::Header::from_bytes(
+                            "Content-Type",
+                            if download {
+                                "application/zip"
+                            } else {
+                                "application/json"
+                            },
+                        )
+                        .unwrap(),
+                    );
+                    if download {
+                        r = r.with_header(
+                            tiny_http::Header::from_bytes(
+                                "Content-Disposition",
+                                format!("attachment; filename=\"{filename}\""),
+                            )
+                            .unwrap(),
+                        );
+                    }
                     r
                 }
-                Err(e) => tiny_http::Response::from_data(json!({"error":e.to_string()}).to_string().into_bytes()).with_status_code(400).with_header(tiny_http::Header::from_bytes("Content-Type", "application/json").unwrap()),
-            }.with_header(tiny_http::Header::from_bytes("Cache-Control", "no-store").unwrap())
-             .with_header(tiny_http::Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap())
-             .with_header(tiny_http::Header::from_bytes("Cross-Origin-Resource-Policy", "same-origin").unwrap());
+                Err(e) => tiny_http::Response::from_data(
+                    json!({"error":e.to_string()}).to_string().into_bytes(),
+                )
+                .with_status_code(400)
+                .with_header(
+                    tiny_http::Header::from_bytes("Content-Type", "application/json").unwrap(),
+                ),
+            }
+            .with_header(tiny_http::Header::from_bytes("Cache-Control", "no-store").unwrap())
+            .with_header(
+                tiny_http::Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap(),
+            )
+            .with_header(
+                tiny_http::Header::from_bytes("Cross-Origin-Resource-Policy", "same-origin")
+                    .unwrap(),
+            );
             let _ = request.respond(response);
             continue;
         }
