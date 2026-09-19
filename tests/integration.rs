@@ -6,7 +6,7 @@ fn setup() -> (tempfile::TempDir, Engine) {
         container: false,
         storage_root: dir.path().join("data"),
         runtime_root: dir.path().join("runtime"),
-        workspace_root: dir.path().into(),
+        workspace_root: Some(dir.path().into()),
         ..Config::default()
     };
     let e = Engine::new(c).unwrap();

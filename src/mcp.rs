@@ -6,6 +6,16 @@ use std::io::{self, BufRead, Write};
 pub fn tools() -> Vec<Value> {
     let definitions = [
         (
+            "draft_get",
+            "Restore a draft scoped to this workspace (or scratch session), problem and language",
+            "problem_id language",
+        ),
+        (
+            "draft_save",
+            "Persist a solving draft without judging or changing reference answers",
+            "problem_id language source",
+        ),
+        (
             "validator_runs_list",
             "Read persisted validator positive/negative runs",
             "problem_id",

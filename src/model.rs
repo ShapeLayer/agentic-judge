@@ -6,7 +6,7 @@ use std::{collections::BTreeMap, path::PathBuf};
 pub struct Config {
     pub storage_root: PathBuf,
     pub runtime_root: PathBuf,
-    pub workspace_root: PathBuf,
+    pub workspace_root: Option<PathBuf>,
     pub container: bool,
     pub container_command: String,
     pub image: String,
@@ -18,10 +18,14 @@ impl Default for Config {
         Self {
             storage_root: "data".into(),
             runtime_root: "run".into(),
-            workspace_root: ".".into(),
+            workspace_root: None,
             container: true,
             container_command: "podman".into(),
-            image: "localhost/agentic-judge-runtime:local".into(),
+            image: concat!(
+                "localhost/agentic-judge-runtime:",
+                env!("CARGO_PKG_VERSION")
+            )
+            .into(),
             languages: default_languages(),
             providers: BTreeMap::new(),
         }

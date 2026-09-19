@@ -2,8 +2,8 @@
   "servers": {
     "agentic-judge": {
       "type": "stdio",
-      "command": "${workspaceFolder}/target/release/agentic-judge",
-      "args": ["mcp", "${workspaceFolder}/judge.toml"]
+      "command": "agentic-judge",
+      "args": ["mcp", "--workspace", "${workspaceFolder}"]
     }
   }
 }

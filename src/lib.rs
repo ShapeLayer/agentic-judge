@@ -8,3 +8,5 @@ pub mod storage;
 pub mod builtin {
     include!(concat!(env!("OUT_DIR"), "/checkers.rs"));
 }
+pub mod config;
+pub mod installation;

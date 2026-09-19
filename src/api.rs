@@ -26,6 +26,35 @@ impl Engine {
     fn dispatch(&self, name: &str, v: Value) -> Result<Value> {
         let id = v["problem_id"].as_str().unwrap_or("");
         match name {
+            "draft_get" | "draft_save" => {
+                self.store.manifest(id)?;
+                let language = s(&v, "language")?;
+                ensure!(
+                    self.runtime.config.languages.contains_key(language),
+                    "unsupported language"
+                );
+                let scope = self
+                    .runtime
+                    .config
+                    .workspace_root
+                    .as_ref()
+                    .map(|p| p.to_string_lossy().into_owned());
+                let key = hash(serde_json::to_vec(&(scope, id, language))?);
+                let directory = self.store.root.join("drafts");
+                let path = directory.join(format!("{key}.json"));
+                if name == "draft_save" {
+                    let source = s(&v, "source")?;
+                    ensure!(source.len() <= 3 * 1024 * 1024, "draft too large");
+                    fs::create_dir_all(directory)?;
+                    let draft = json!({"problem_id":id,"language":language,"source":source,"updated_at":now()});
+                    write_json(&path, &draft)?;
+                    Ok(draft)
+                } else if path.exists() {
+                    read_json::<Value>(&path)
+                } else {
+                    Ok(Value::Null)
+                }
+            }
             "problems_list" => Ok(json!(self.store.list()?)),
             "problem_create" => Ok(json!(
                 self.store.create(s(&v, "problem_id")?, s(&v, "name")?)?
@@ -308,7 +337,7 @@ impl Engine {
             "reviews_list" => Ok(json!(self.store.records::<Review>(id, "reviews")?)),
             "validator_runs_list" => Ok(json!(self.store.records::<Value>(id, "validator-runs")?)),
             "workspace_list" => {
-                let root = self.runtime.config.workspace_root.canonicalize()?;
+                let root = self.workspace_root()?;
                 let directory = root
                     .join(v["path"].as_str().unwrap_or("."))
                     .canonicalize()?;
@@ -328,13 +357,18 @@ impl Engine {
                 Ok(json!({"path":s(&v,"path")?,"content":self.workspace_read(s(&v,"path")?)?}))
             }
             "capabilities" => Ok(
-                json!({"languages":self.runtime.config.languages,"checkers":crate::builtin::COMMON_CHECKERS.iter().map(|(id,_)|format!("testlib:{id}")).collect::<Vec<_>>(),"providers":self.runtime.config.providers.keys().collect::<Vec<_>>(),"container":self.runtime.config.container,"local_memory_enforced":cfg!(target_os="linux"),"version":env!("CARGO_PKG_VERSION")}),
+                json!({"languages":self.runtime.config.languages,"checkers":crate::builtin::COMMON_CHECKERS.iter().map(|(id,_)|format!("testlib:{id}")).collect::<Vec<_>>(),"providers":self.runtime.config.providers.keys().collect::<Vec<_>>(),"container":self.runtime.config.container,"workspace":self.runtime.config.workspace_root,"storage_root":self.store.root,"local_memory_enforced":cfg!(target_os="linux"),"version":env!("CARGO_PKG_VERSION")}),
             ),
             _ => bail!("unknown tool {name}"),
         }
     }
+    pub fn workspace_root(&self) -> Result<std::path::PathBuf> {
+        self.runtime.config.workspace_root.as_ref()
+            .context("no workspace selected; start with --workspace <directory>, or submit source directly")?
+            .canonicalize().context("workspace is unavailable")
+    }
     pub fn workspace_read(&self, path: &str) -> Result<String> {
-        let root = self.runtime.config.workspace_root.canonicalize()?;
+        let root = self.workspace_root()?;
         let p = root.join(path).canonicalize()?;
         ensure!(p.starts_with(root), "file outside workspace");
         ensure!(fs::metadata(&p)?.len() <= 4 * 1024 * 1024, "file too large");
@@ -424,11 +458,103 @@ pub fn render(md: &str) -> String {
     clean
 }
 pub fn serve(engine: Engine, addr: &str) -> Result<()> {
+    serve_with_options(engine, addr, false)
+}
+pub fn serve_with_options(engine: Engine, addr: &str, open: bool) -> Result<()> {
     let socket: std::net::SocketAddr = addr.parse()?;
     ensure!(socket.ip().is_loopback(), "HTTP must bind loopback");
     let server = tiny_http::Server::http(addr).map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    eprintln!("Judge API listening at http://{addr}");
+    let addr = server
+        .server_addr()
+        .to_ip()
+        .context("HTTP address unavailable")?
+        .to_string();
+    eprintln!("Agentic Judge listening at http://{addr}");
+    if open {
+        let command = if cfg!(target_os = "macos") {
+            "open"
+        } else {
+            "xdg-open"
+        };
+        if let Err(error) = std::process::Command::new(command)
+            .arg(format!("http://{addr}"))
+            .spawn()
+        {
+            eprintln!("Open http://{addr} in a browser ({error})");
+        }
+    }
     for mut request in server.incoming_requests() {
+        if request.method() == &tiny_http::Method::Get
+            && request.url().starts_with("/api/draft-download?")
+        {
+            let export = (|| -> Result<(String, String)> {
+                if let Some(origin) = request.headers().iter().find(|h| h.field.equiv("Origin")) {
+                    ensure!(
+                        origin.value.as_str() == format!("http://{addr}"),
+                        "cross-origin request rejected"
+                    );
+                }
+                let url = reqwest::Url::parse(&format!("http://{addr}{}", request.url()))?;
+                let query: std::collections::HashMap<_, _> =
+                    url.query_pairs().into_owned().collect();
+                let id = query.get("problem_id").context("problem_id required")?;
+                let language = query.get("language").context("language required")?;
+                let draft =
+                    engine.call("draft_get", json!({"problem_id":id,"language":language}))?;
+                let source = draft["source"]
+                    .as_str()
+                    .context("draft not found")?
+                    .to_owned();
+                let recipe = engine
+                    .runtime
+                    .config
+                    .languages
+                    .get(language)
+                    .context("unsupported language")?;
+                // Never allow configured filenames to inject a response header or path.
+                let filename = if !recipe.filename.is_empty()
+                    && recipe
+                        .filename
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+                {
+                    recipe.filename.clone()
+                } else {
+                    "solution.txt".into()
+                };
+                Ok((source, filename))
+            })();
+            let response = match export {
+                Ok((source, filename)) => tiny_http::Response::from_string(source)
+                    .with_header(
+                        tiny_http::Header::from_bytes("Content-Type", "text/plain; charset=utf-8")
+                            .unwrap(),
+                    )
+                    .with_header(
+                        tiny_http::Header::from_bytes(
+                            "Content-Disposition",
+                            format!("attachment; filename=\"{filename}\""),
+                        )
+                        .unwrap(),
+                    )
+                    .with_header(
+                        tiny_http::Header::from_bytes("Cache-Control", "no-store").unwrap(),
+                    )
+                    .with_header(
+                        tiny_http::Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap(),
+                    )
+                    .with_header(
+                        tiny_http::Header::from_bytes(
+                            "Cross-Origin-Resource-Policy",
+                            "same-origin",
+                        )
+                        .unwrap(),
+                    ),
+                Err(e) => tiny_http::Response::from_string(e.to_string()).with_status_code(400),
+            };
+            let _ = request.respond(response);
+            continue;
+        }
         let response = (|| -> Result<Value> {
             if let Some(origin) = request.headers().iter().find(|h| h.field.equiv("Origin")) {
                 ensure!(

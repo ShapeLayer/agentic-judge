@@ -1,10 +1,11 @@
-# Paths are relative to this configuration file; absolute paths are recommended.
+# Explicit portable configuration. For per-user paths use `agentic-judge init-config`.
+# Paths are relative to this file. Workspace is optional and can be passed with --workspace.
 storage_root = "./data"
 runtime_root = "./run"
-workspace_root = "."
+# workspace_root = "/absolute/path/to/solutions"
 container = true
 container_command = "podman"
-image = "localhost/agentic-judge-runtime:local"
+image = "localhost/agentic-judge-runtime:0.1.0"
 
 # Omit [languages] to use all built-in language recipes.
 # To customize, generate a complete configuration with init-config first.
