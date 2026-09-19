@@ -1,0 +1,61 @@
+name: installable-artifacts
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+jobs:
+  binaries:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - run: npm ci --prefix ui
+      - run: npm run check --prefix ui
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --locked --test installed
+      - run: scripts/package.sh
+      - name: Verify extracted installation
+        run: |
+          mkdir extracted
+          tar -xzf dist/*.tar.gz -C extracted
+          sh extracted/*/install.sh --prefix "$RUNNER_TEMP/judge-install"
+          cd "$RUNNER_TEMP"
+          AGENTIC_JUDGE_HOME="$RUNNER_TEMP/judge-data" "$RUNNER_TEMP/judge-install/bin/agentic-judge" call capabilities
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agentic-judge-${{ matrix.os }}
+          path: dist/*
+  runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - run: npm ci --prefix ui
+      - run: npm run check --prefix ui
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt-get update && sudo apt-get install -y podman uidmap slirp4netns
+      - run: cargo build --locked
+      - name: Build the embedded runtime without a checkout working directory
+        run: |
+          cp target/debug/agentic-judge "$RUNNER_TEMP/agentic-judge"
+          cd "$RUNNER_TEMP"
+          export AGENTIC_JUDGE_HOME="$RUNNER_TEMP/judge-data"
+          ./agentic-judge runtime-install
+          ./agentic-judge doctor
+          version=$(./agentic-judge --version | awk '{print $2}')
+          podman save --format oci-archive -o "$RUNNER_TEMP/agentic-judge-runtime-linux-amd64.tar" "localhost/agentic-judge-runtime:$version"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-linux-amd64
+          path: ${{ runner.temp }}/agentic-judge-runtime-linux-amd64.tar

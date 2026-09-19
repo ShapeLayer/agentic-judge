@@ -5,6 +5,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - run: npm ci --prefix ui
+      - run: npm run check --prefix ui
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -16,5 +23,5 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y podman uidmap slirp4netns
           podman info
-      - run: podman build -t localhost/agentic-judge-runtime:local runtime
+      - run: cargo run --locked -- runtime-install
       - run: cargo test --locked --test container -- --ignored
