@@ -484,6 +484,26 @@ pub fn serve_with_options(engine: Engine, addr: &str, open: bool) -> Result<()> 
         }
     }
     for mut request in server.incoming_requests() {
+        // Host validation also prevents DNS rebinding against the local app.
+        if !request
+            .headers()
+            .iter()
+            .any(|h| h.field.equiv("Host") && h.value.as_str() == addr)
+        {
+            let _ = request
+                .respond(tiny_http::Response::from_string("invalid host").with_status_code(400));
+            continue;
+        }
+        if request.method() == &tiny_http::Method::Get
+            && let Some((body, mime)) = crate::web_ui::asset(request.url())
+        {
+            let response = tiny_http::Response::from_data(body)
+                    .with_header(tiny_http::Header::from_bytes("Content-Type", mime).unwrap())
+                    .with_header(tiny_http::Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap())
+                    .with_header(tiny_http::Header::from_bytes("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'").unwrap());
+            let _ = request.respond(response);
+            continue;
+        }
         if request.method() == &tiny_http::Method::Get
             && request.url().starts_with("/api/draft-download?")
         {

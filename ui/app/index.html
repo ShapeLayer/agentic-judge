@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agentic Judge</title><link rel="stylesheet" href="/tokens.css"><link rel="stylesheet" href="/app.css"><script type="module" src="/app.js"></script></head>
+<body>
+<header><strong>Agentic Judge</strong><span id="workspace">연결 중입니다.</span><button id="refresh">새로고침</button></header>
+<div id="notice" role="status" aria-live="polite"></div>
+<main>
+<aside><h1>문제</h1><input id="filter" type="search" aria-label="문제 검색" placeholder="문제 검색"><nav id="problems" aria-label="문제 목록"></nav>
+<details><summary>문제 만들기</summary><form id="create"><label>문제 ID<input name="problem_id" required pattern="[A-Za-z0-9_-]+"></label><label>문제 이름<input name="name" required></label><button>만들기</button></form></details>
+<details id="import-panel" hidden><summary>문제 가져오기</summary><form id="import"><label>문제 ID<input name="problem_id" required></label><label>워크스페이스 내 문서 경로<input name="path" required placeholder="problems/sum/problem.xml"></label><button>가져오기</button></form></details>
+<details><summary>문제 ZIP 가져오기</summary><form id="archive-problem"><label>새 문제 ID<input name="problem_id" required pattern="[A-Za-z0-9_-]+" maxlength="100"></label><label>ZIP 파일<input name="archive" type="file" accept=".zip,application/zip" required></label><button>문제 가져오기</button></form></details>
+</aside>
+<section id="empty"><h2>풀 문제를 선택하세요</h2><p>문제를 선택한 뒤 바로 코드를 작성하거나 파일을 열 수 있습니다.</p><p>처음 사용한다면 문제를 만들고 채점 준비에서 정해와 테스트를 등록하세요.</p></section>
+<section id="problem" hidden>
+<div class="heading"><div><h1 id="problem-name"></h1><p id="limits"></p></div><span id="readiness"></span></div>
+<button id="export-problem">문제 ZIP 내보내기</button><div class="columns"><article><div id="statement"></div><div id="examples"></div></article>
+<section class="solve"><h2>문제풀이</h2><div class="toolbar"><label>언어<select id="language"></select></label><label class="file">파일 열기<input id="file" type="file"></label><button id="download">파일로 저장</button></div>
+<details id="workspace-files" hidden><summary>워크스페이스 파일 열기</summary><form id="workspace-open"><label>상대 경로<input name="path" required placeholder="solutions/main.py"></label><button>열기</button></form><div id="files"></div></details>
+<label for="source" class="sr-only">풀이 코드</label><textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="여기에 풀이 코드를 작성하세요."></textarea>
+<div class="toolbar"><span id="draft-status" role="status"></span><button id="submit" class="primary">제출</button></div>
+<h2>제출 결과</h2><div id="submissions"></div>
+</section></div>
+<details id="setup"><summary>채점 준비</summary><p>정해를 저장하고 테스트 입력을 추가하면 정해로 기대 출력을 생성합니다.</p>
+<form id="statement-form"><label>문제 설명<textarea name="markdown" rows="5"></textarea></label><button>설명 저장</button></form>
+<form id="answer-form"><label>정해 언어<select name="language" id="answer-language"></select></label><label>정해 코드<textarea name="source" rows="6" required spellcheck="false"></textarea></label><button>정해 저장</button></form>
+<h2>테스트 셋과 테스트</h2><div id="test-archives"></div>
+<p>가져오기는 기존 항목을 덮어쓰지 않습니다. 가져온 테스트는 기대 출력을 다시 생성해야 채점할 수 있습니다. ZIP 파일은 32 MiB까지 지원합니다.</p>
+<button id="regenerate-tests">기대 출력 다시 생성</button><form id="archive-tests"><label>가져올 항목<select name="kind"><option value="suite">테스트 셋</option><option value="test">개별 테스트</option></select></label><label>대상 테스트 셋 이름<input name="suite" value="general" required pattern="[A-Za-z0-9_-]+" maxlength="100"></label><label id="archive-number" hidden>대상 테스트 번호<input name="number" type="number" min="1" step="1" value="1"></label><label>ZIP 파일<input name="archive" type="file" accept=".zip,application/zip" required></label><button>ZIP 가져오기</button></form>
+<form id="test-form"><label>테스트 셋<input name="suite" value="general" required pattern="[A-Za-z0-9_-]+"></label><label>테스트 번호<input name="number" type="number" min="1" value="1" required></label><label>테스트 입력<textarea name="input" rows="3"></textarea></label><button>테스트 저장</button></form>
+</details></section>
+</main></body></html>

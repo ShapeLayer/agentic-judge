@@ -10,3 +10,4 @@ pub mod builtin {
 }
 pub mod config;
 pub mod installation;
+pub mod web_ui;

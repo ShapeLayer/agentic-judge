@@ -1,0 +1,11 @@
+{
+  "name": "agentic-judge-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": { "typescript": "5.9.3" }
+}
