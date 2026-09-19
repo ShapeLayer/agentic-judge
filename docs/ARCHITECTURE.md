@@ -45,3 +45,25 @@ HTTP API는 루프백에서만 접근할 수 있으며, POST /api/tools/<동일 
 Podman 전환: 기본 container_command는 podman, 이미지 이름은 localhost/agentic-judge-runtime:local입니다. rootless keep-id 매핑으로 호스트 사용자를 컨테이너 UID/GID 65534에 연결하여 컴파일 산출물의 소유권을 유지합니다. 작업 디렉터리 권한은 0700으로 설정하고, 바인드 마운트에는 SELinux private relabel을 적용합니다. run/inspect/kill/rm 모두 설정된 Podman 명령을 사용하며 Docker daemon/socket에 의존하지 않습니다. [Podman 실행 옵션 공식 문서](https://docs.podman.io/en/latest/markdown/podman-run.1.html)를 기준으로 구성했습니다.
 
 AI 모델 이력: 각 Review에 requested_model(요청 시 설정된 모델)과 response_model(API 최상위 model 메타데이터)을 보관합니다. 요청 전 requested_model을 고정하므로 연결이나 인증에 실패해도 요청 모델 정보가 남고, 응답 본문 파싱 실패에도 수신한 response_model을 보존합니다. 모델의 자기소개는 식별 근거로 사용하지 않습니다. 메타데이터가 없는 응답은 요청 모델만 기록하며, 기존 기록의 누락 필드는 null로 읽고 현재 설정으로 소급 보충하지 않습니다.
+
+## 외부 문서 가져오기
+
+`problem_import(problem_id, path, format?, language?, time_limit_ms?, memory_limit_mb?)`는 문서 데이터를 기존 저장 형식으로 변환합니다. `format`은 `auto`(기본값), `polygon`, `boj_archive`입니다. 원본은 설정의 `workspace_root` 안에 있어야 하며 심볼릭 링크를 통한 범위 이탈도 거부합니다. 기존 ID는 덮어쓰지 않습니다. 변환과 파일 저장이 모두 성공한 뒤 디렉터리를 게시하므로 실패한 가져오기는 미완성 문제를 남기지 않습니다.
+
+| 원본 | 대상 |
+| --- | --- |
+| Polygon 언어별 name / 백준 title | manifest.name |
+| Polygon time-limit(ms), memory-limit(bytes) / 백준 time-limit(초), memory-limit(MB) | manifest.time_limit_ms / memory_limit_mb |
+| Polygon tags/tag@value / 백준 tags 목록 | manifest.tags (문자열 배열, 생략 시 빈 배열) |
+| Polygon legend/input-specification/output-specification/note | statements/legend/input/output/notes.md |
+| 백준 문제/입력/출력 | statements/legend/input/output.md |
+| 백준 힌트·조건·출처·서브태스크 등 나머지 문서 절 | 원래 제목과 함께 statements/notes.md |
+| 언어별 Polygon sampleTests / 백준 예제 입력·출력 코드 블록 | statements/example.N.in/out |
+
+Polygon은 압축을 푼 패키지 디렉터리 또는 `problem.xml`을 받습니다. HTML statement가 포함된 패키지를 지원하며, `language`를 생략하면 korean → english → 첫 번째 제공 언어 순서로 선택합니다. 지정 언어가 없거나 HTML이 없는 패키지는 명확한 오류를 반환합니다. LaTeX 수식, 기본 표·목록·링크를 Markdown으로 변환합니다. 예제는 `problem-properties.json`의 샘플 파일을 우선 읽어 공백을 보존하며 이 JSON이 없는 패키지는 HTML 예제를 사용하고 경고합니다. 로컬 PNG/JPEG/GIF/WebP 이미지는 `statements/assets/<sha256>.<확장자>`로 복사하고 `GET /api/problems/<id>/assets/<파일명>`으로 제공합니다. 외부 이미지 URL은 유지하며 다운로드하지 않습니다. 지원하지 않는 로컬 이미지 형식은 오류로 반환합니다.
+
+백준 아카이브는 `problems/<번호>번_ <제목>.md` 파일 하나를 받습니다. 아카이브의 메타데이터는 제목에 따옴표 없이 콜론이 포함될 수 있으므로, 지원 필드의 줄 형식을 기준으로 읽습니다. 제목은 원문 문자열, tags는 YAML 문자열 목록입니다. 빈 예제 제목의 중복과 동일한 예제의 반복은 허용하되 서로 다른 데이터의 중복은 오류로 처리합니다. 원본에서 누락되거나 모호한 예제는 값을 추측하지 않고 남아 있는 본문을 notes에 보존하며 `warnings`로 알립니다. 완전한 예제 쌍만 1부터 연속 번호로 등록합니다. 예제 뒤 설명도 notes에 보존합니다. 빈 문제 본문도 경고로 알립니다.
+
+제한값 뒤의 괄호 주석은 notes에 보존합니다. 원본 제한이 0 또는 ‘서브태스크 참고’처럼 단일 양수로 해석되지 않으면 해당 `time_limit_ms`/`memory_limit_mb`를 명시해야 합니다. 원본에 없는 제한을 자동으로 추측하지 않습니다. 오버라이드한 백준 원본 제한 역시 notes에 남깁니다. 레벨·티어 관련 기능이나 필드는 추가하지 않습니다.
+
+반환값은 `{manifest, format, warnings, ready:false}`입니다. 이 도구는 문제 문서만 등록합니다. 원본 프로그램을 실행하거나 정해·validator·checker·비공개 테스트를 자동 등록하지 않으며, 채점 준비 상태는 기존 등록·검증 절차를 거쳐야 합니다.

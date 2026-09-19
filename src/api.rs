@@ -59,6 +59,7 @@ impl Engine {
             "problem_create" => Ok(json!(
                 self.store.create(s(&v, "problem_id")?, s(&v, "name")?)?
             )),
+            "problem_import" => self.import_document(&v),
             "problem_get" => {
                 let mut statements = json!({});
                 for section in ["legend", "input", "output", "notes"] {
@@ -571,6 +572,66 @@ pub fn serve_with_options(engine: Engine, addr: &str, open: bool) -> Result<()> 
                         .unwrap(),
                     ),
                 Err(e) => tiny_http::Response::from_string(e.to_string()).with_status_code(400),
+            };
+            let _ = request.respond(response);
+            continue;
+        }
+        if request.method() == &tiny_http::Method::Get
+            && request.url().starts_with("/api/problems/")
+        {
+            let asset = (|| -> Result<(Vec<u8>, &'static str)> {
+                if let Some(origin) = request.headers().iter().find(|h| h.field.equiv("Origin")) {
+                    ensure!(
+                        origin.value.as_str() == format!("http://{addr}"),
+                        "cross-origin request rejected"
+                    );
+                }
+                let parts: Vec<_> = request.url().split('/').collect();
+                ensure!(
+                    parts.len() == 6 && parts[4] == "assets",
+                    "unknown asset route"
+                );
+                identifier(parts[3])?;
+                let (hash, extension) = parts[5].split_once('.').context("invalid asset name")?;
+                ensure!(
+                    hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()),
+                    "invalid asset hash"
+                );
+                let mime = match extension {
+                    "png" => "image/png",
+                    "jpg" | "jpeg" => "image/jpeg",
+                    "gif" => "image/gif",
+                    "webp" => "image/webp",
+                    _ => bail!("unsupported asset type"),
+                };
+                let root = engine
+                    .store
+                    .problem(parts[3])?
+                    .join("statements/assets")
+                    .canonicalize()?;
+                ensure!(
+                    root.starts_with(&engine.store.root),
+                    "asset outside storage"
+                );
+                let path = root.join(parts[5]).canonicalize()?;
+                ensure!(path.starts_with(root), "asset outside storage");
+                Ok((fs::read(path)?, mime))
+            })();
+            let response = match asset {
+                Ok((bytes, mime)) => tiny_http::Response::from_data(bytes)
+                    .with_header(tiny_http::Header::from_bytes("Content-Type", mime).unwrap())
+                    .with_header(
+                        tiny_http::Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap(),
+                    )
+                    .with_header(
+                        tiny_http::Header::from_bytes(
+                            "Cross-Origin-Resource-Policy",
+                            "same-origin",
+                        )
+                        .unwrap(),
+                    ),
+                Err(_) => tiny_http::Response::from_data(b"asset not found".to_vec())
+                    .with_status_code(404),
             };
             let _ = request.respond(response);
             continue;

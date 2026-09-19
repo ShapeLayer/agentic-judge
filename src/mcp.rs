@@ -16,6 +16,11 @@ pub fn tools() -> Vec<Value> {
             "problem_id language source",
         ),
         (
+            "problem_import",
+            "Import document metadata, statements and examples from Polygon or BOJ archive within workspace",
+            "problem_id path ?format ?language ?time_limit_ms ?memory_limit_mb",
+        ),
+        (
             "validator_runs_list",
             "Read persisted validator positive/negative runs",
             "problem_id",
