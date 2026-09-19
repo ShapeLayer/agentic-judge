@@ -12,3 +12,5 @@ pub mod config;
 pub mod import;
 pub mod installation;
 pub mod web_ui;
+
+pub mod archive;
