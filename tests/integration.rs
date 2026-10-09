@@ -897,7 +897,7 @@ fn artifact_model_provenance_survives_regeneration_and_revisions() {
     let saved = e.call("answer_save", json!({"problem_id":"sum","language":"python","source":"print(sum(map(int,input().split())))","expected":"AC","main":true,"generated_by_model":"creator-a"})).unwrap();
     let aid = saved["answer"]["id"].as_str().unwrap();
     e.call("test_put", json!({"problem_id":"sum","suite":"general","number":1,"input":"2 3\n","generated_by_model":"creator-t"})).unwrap();
-    let target = format!("test:general:1");
+    let target = "test:general:1".to_string();
     let review = Review {
         id: uuid(),
         provider: "reviewer".into(),

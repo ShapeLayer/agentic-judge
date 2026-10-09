@@ -183,11 +183,10 @@ impl Engine {
                     }
                 }
             })
-            .map_err(|error| {
+            .inspect_err(|_| {
                 let mut failed = submission.clone();
                 failed.verdict = "JUDGE_ERROR".into();
                 let _ = self.save_submission(&failed);
-                error
             })?;
         Ok(submission)
     }
