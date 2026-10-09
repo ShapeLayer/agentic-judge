@@ -295,6 +295,8 @@ fn installed_http_serves_embedded_app_and_preserves_boundaries() {
         ("/", "text/html", "풀이 코드"),
         ("/app.js", "text/javascript", "draft_save"),
         ("/app.css", "text/css", "columns"),
+        ("/editor.css", "text/css", "monaco-editor"),
+        ("/editor.worker.js", "text/javascript", ""),
         ("/tokens.css", "text/css", "--c-bg"),
     ] {
         let response = client.get(format!("{url}{path}")).send().unwrap();

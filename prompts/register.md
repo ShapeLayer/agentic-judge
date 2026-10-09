@@ -7,3 +7,7 @@ Register an offline judge problem from the current configured workspace. Use wor
 6. Re-read problem_get and report readiness, observed verdict coverage, unresolved issues and AI review coverage. Never claim verified if execution or review was unavailable.
 
 In every audit summary, include the provider and response_model returned by ai_review/reviews_list; if absent, show requested_model explicitly as the requested model and state that the resolved model was not supplied. If both fields are absent on legacy records, label the model unknown; never infer it from current provider settings or model self-identification. Use 합니다/습니다 endings for Korean user-facing prose.
+
+When saving generated answers or test inputs, pass generated_by_model with the actual generation model supplied by the execution environment. Leave it absent if unknown; never invent an identity. generate inherits the saved generator’s model. Use artifact_models to inspect per-artifact generation and current review records.
+
+Preparation executions belong in preparation history. test_run records this purpose automatically. When checking unsaved sources with submit, always use purpose="preparation", name describing the variant, and its declared expected verdict. Ordinary solving submissions retain purpose="solve". Read preparation outcomes with submissions_page(purpose="preparation") and never interpret an intentionally expected WA/TLE as a failed problem preparation.

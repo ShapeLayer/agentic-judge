@@ -38,6 +38,11 @@ pub fn tools() -> Vec<Value> {
         ),
         ("problems_list", "List local problems", ""),
         (
+            "problems_search",
+            "Search problem IDs, names and tags with bounded pagination",
+            "?query ?offset ?limit",
+        ),
+        (
             "problem_create",
             "Create a problem with a general test suite",
             "problem_id name",
@@ -70,7 +75,12 @@ pub fn tools() -> Vec<Value> {
         (
             "answer_save",
             "Create or revise a UUID answer, validator or generator; main changes regenerate outputs",
-            "problem_id language source expected ?answer_id ?main",
+            "problem_id language source expected ?answer_id ?main ?generated_by_model",
+        ),
+        (
+            "artifact_models",
+            "Read generation models and current review model records for each saved answer and test",
+            "problem_id",
         ),
         ("answers_list", "List current UUID answers", "problem_id"),
         (
@@ -81,7 +91,7 @@ pub fn tools() -> Vec<Value> {
         (
             "test_put",
             "Save input and regenerate main-solution outputs",
-            "problem_id suite number input",
+            "problem_id suite number input ?generated_by_model",
         ),
         (
             "test_get",
@@ -101,7 +111,27 @@ pub fn tools() -> Vec<Value> {
         (
             "submit",
             "Judge source text or a workspace-relative attached file",
-            "problem_id language ?source ?file",
+            "problem_id language ?source ?file ?summary_only ?async ?purpose ?name ?expected",
+        ),
+        (
+            "submissions_page",
+            "Read paginated submission summaries across all problems or one problem without large test payloads",
+            "?problem_id ?query ?verdict ?language ?offset ?limit ?purpose",
+        ),
+        (
+            "submission_preview",
+            "Read submitted code and evaluation metrics without test data",
+            "problem_id submission_id",
+        ),
+        (
+            "submission_data_preview",
+            "Read the first 4096 characters of one evaluation file and its absolute path",
+            "problem_id submission_id case_index field",
+        ),
+        (
+            "submissions_compact",
+            "Separate evaluation data from legacy records, keeping code and verdicts",
+            "?problem_id",
         ),
         (
             "submissions_list",
@@ -111,7 +141,12 @@ pub fn tools() -> Vec<Value> {
         (
             "test_run",
             "Judge a saved answer and compare its expected verdict",
-            "problem_id answer_id",
+            "problem_id answer_id ?async",
+        ),
+        (
+            "submission_classify",
+            "Move an existing completed run between solving and preparation history",
+            "problem_id submission_id purpose ?name",
         ),
         (
             "ai_review",
@@ -142,7 +177,7 @@ pub fn tools() -> Vec<Value> {
     definitions.into_iter().map(|(name,description,fields)|{
         let mut properties=json!({});let mut required=vec![];
         for field in fields.split_whitespace(){let optional=field.starts_with('?');let key=field.trim_start_matches('?');
-            properties[key]=match key {"number"|"time_limit_ms"|"memory_limit_mb"=>json!({"type":"integer","minimum":1}),"main"=>json!({"type":"boolean"}),"args"|"tags"=>json!({"type":"array","items":{"type":"string"}}),"validator"=>json!({"type":["string","null"]}),_=>json!({"type":"string"})};
+            properties[key]=match key {"offset"|"case_index"=>json!({"type":"integer","minimum":0}),"limit"=>json!({"type":"integer","minimum":1,"maximum":100}),"number"|"time_limit_ms"|"memory_limit_mb"=>json!({"type":"integer","minimum":1}),"main"|"summary_only"|"async"|"expect_valid"=>json!({"type":"boolean"}),"args"|"tags"=>json!({"type":"array","items":{"type":"string"}}),"validator"=>json!({"type":["string","null"]}),_=>json!({"type":"string"})};
             if !optional {required.push(key);}
         }
         json!({"name":name,"description":description,"inputSchema":{"type":"object","properties":properties,"required":required,"additionalProperties":false}})

@@ -67,3 +67,6 @@ Polygon은 압축을 푼 패키지 디렉터리 또는 `problem.xml`을 받습�
 제한값 뒤의 괄호 주석은 notes에 보존합니다. 원본 제한이 0 또는 ‘서브태스크 참고’처럼 단일 양수로 해석되지 않으면 해당 `time_limit_ms`/`memory_limit_mb`를 명시해야 합니다. 원본에 없는 제한을 자동으로 추측하지 않습니다. 오버라이드한 백준 원본 제한 역시 notes에 남깁니다. 레벨·티어 관련 기능이나 필드는 추가하지 않습니다.
 
 반환값은 `{manifest, format, warnings, ready:false}`입니다. 이 도구는 문제 문서만 등록합니다. 원본 프로그램을 실행하거나 정해·validator·checker·비공개 테스트를 자동 등록하지 않으며, 채점 준비 상태는 기존 등록·검증 절차를 거쳐야 합니다.
+
+### Checker reuse
+Compiled C++ checkers (custom and built-in testlib) are cached per problem under `.checker-cache/`. The cache key includes source, testlib header, C++ compile/run configuration, runtime mode, container command/image, and application version. A file lock serializes cache publication across processes, and failed compilations do not publish entries. Submissions receive private working copies of the cached artifacts so test input/output never mutates the shared cache. Built-in tokens/exact/lines comparisons require no compilation. Submission `checker.txt` files contain per-case checker diagnostics, not checker source or binaries.

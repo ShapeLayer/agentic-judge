@@ -55,6 +55,17 @@ impl Engine {
                     Ok(Value::Null)
                 }
             }
+            "problems_search" => {
+                let query = v["query"].as_str().unwrap_or("").to_lowercase();
+                let offset = v["offset"].as_u64().unwrap_or(0) as usize;
+                let limit = v["limit"].as_u64().unwrap_or(50).clamp(1, 100) as usize;
+                let (matches, total) = self.store.search(&query, offset, limit)?;
+                let items: Vec<_> = matches
+                    .into_iter()
+                    .map(|(id, name)| json!({"id":id,"name":name}))
+                    .collect();
+                Ok(json!({"items":items,"total":total}))
+            }
             "problems_list" => Ok(json!(self.store.list()?)),
             "problem_create" => Ok(json!(
                 self.store.create(s(&v, "problem_id")?, s(&v, "name")?)?
@@ -219,12 +230,16 @@ impl Engine {
                 {
                     ensure!(s(&v, "expected")? == "AC", "main solution must expect AC");
                 }
-                let a = self.store.save_answer(
+                let a = self.store.save_answer_with_model(
                     id,
                     v["answer_id"].as_str(),
                     language,
                     s(&v, "source")?,
                     s(&v, "expected")?,
+                    v["generated_by_model"]
+                        .as_str()
+                        .filter(|s| !s.trim().is_empty())
+                        .map(|s| s.trim().to_owned()),
                 )?;
                 if v["main"].as_bool() == Some(true) {
                     ensure!(a.expected == "AC", "main solution must expect AC");
@@ -242,6 +257,28 @@ impl Engine {
                     Value::Null
                 };
                 Ok(json!({"answer":a,"regeneration":regeneration}))
+            }
+            "artifact_models" => {
+                let m = self.store.manifest(id)?;
+                let mut items = vec![];
+                let answers = self.store.problem(id)?.join("answers");
+                if answers.exists() {
+                    for entry in fs::read_dir(answers)? {
+                        let a: Answer = read_json(&entry?.path().join("current.json"))?;
+                        let target = format!("answer:{}", a.id);
+                        let label = if m.main_solution.as_deref() == Some(&a.id) {
+                            "정해 코드"
+                        } else {
+                            "풀이 코드"
+                        };
+                        items.push(json!({"label":label, "target":target, "generated_by_model":a.generated_by_model, "trust":self.trust(id, &target).ok()}));
+                    }
+                }
+                for t in self.store.tests(id)? {
+                    let target = format!("test:{}:{}", t.suite, t.number);
+                    items.push(json!({"label":format!("{} #{}",t.suite,t.number),"target":target,"generated_by_model":t.generated_by_model,"trust":self.trust(id,&target).ok()}));
+                }
+                Ok(json!(items))
             }
             "answers_list" => {
                 let p = self.store.problem(id)?.join("answers");
@@ -268,9 +305,14 @@ impl Engine {
                 Ok(json!(records))
             }
             "test_put" => {
-                let t =
+                let mut t =
                     self.store
                         .put_test(id, s(&v, "suite")?, n(&v, "number")?, s(&v, "input")?)?;
+                t.generated_by_model = v["generated_by_model"]
+                    .as_str()
+                    .filter(|s| !s.trim().is_empty())
+                    .map(|s| s.trim().to_owned());
+                write_json(&self.store.test_path(id, &t.suite, t.number, "json")?, &t)?;
                 let generation = if self.store.manifest(id)?.main_solution.is_some() {
                     Some(self.regenerate(id)?)
                 } else {
@@ -305,6 +347,7 @@ impl Engine {
                 let mut t =
                     self.store
                         .put_test(id, s(&v, "suite")?, n(&v, "number")?, &r.stdout)?;
+                t.generated_by_model = a.generated_by_model.clone();
                 t.origin = Some(json!({"generator_id":a.id,"revision":a.revision,"args":args}));
                 write_json(&self.store.test_path(id, &t.suite, t.number, "json")?, &t)?;
                 if m.main_solution.is_some() {
@@ -319,14 +362,164 @@ impl Engine {
                 } else {
                     s(&v, "source")?.into()
                 };
-                Ok(json!(self.submit(id, s(&v, "language")?, &source)?))
+                let purpose: SubmissionPurpose =
+                    serde_json::from_value(v.get("purpose").cloned().unwrap_or(json!("solve")))?;
+                let preparation = if purpose == SubmissionPurpose::Preparation {
+                    let expected = s(&v, "expected")?;
+                    ensure!(
+                        ["AC", "WA", "TLE", "MLE", "RE", "CE", "PE"].contains(&expected),
+                        "invalid expected verdict"
+                    );
+                    Some(PreparationRun {
+                        name: v["name"].as_str().unwrap_or("검증 코드").into(),
+                        expected: Some(expected.into()),
+                        answer_id: None,
+                        revision: None,
+                    })
+                } else {
+                    None
+                };
+                let submission = if v["async"].as_bool().unwrap_or(false) {
+                    self.submit_async_with_context(id, s(&v, "language")?, &source, preparation)?
+                } else if let Some(context) = preparation {
+                    self.submit_preparation(id, s(&v, "language")?, &source, context)?
+                } else {
+                    self.submit(id, s(&v, "language")?, &source)?
+                };
+                if v["summary_only"].as_bool().unwrap_or(false) {
+                    Ok(json!(SubmissionSummary::from(&submission)))
+                } else {
+                    Ok(json!(submission))
+                }
+            }
+            "submissions_page" => {
+                let summaries = if id.is_empty() {
+                    self.store.all_submission_summaries()?
+                } else {
+                    let name = self.store.manifest(id)?.name;
+                    self.store
+                        .submission_summaries(id)?
+                        .into_iter()
+                        .map(|s| (s, name.clone()))
+                        .collect()
+                };
+                let purpose = v["purpose"].as_str().unwrap_or("solve");
+                ensure!(
+                    ["solve", "preparation", "all"].contains(&purpose),
+                    "invalid submission purpose"
+                );
+                let query = v["query"].as_str().unwrap_or("").to_lowercase();
+                let verdict = v["verdict"].as_str().unwrap_or("");
+                let language = v["language"].as_str().unwrap_or("");
+                let matches: Vec<_> = summaries
+                    .into_iter()
+                    .filter(|(s, name)| {
+                        (purpose == "all"
+                            || (purpose == "preparation")
+                                == (s.purpose == SubmissionPurpose::Preparation))
+                            && (verdict.is_empty() || s.verdict == verdict)
+                            && (language.is_empty() || s.language == language)
+                            && format!("{} {}", s.problem_id, name)
+                                .to_lowercase()
+                                .contains(&query)
+                    })
+                    .collect();
+                let total = matches.len();
+                let offset = v["offset"].as_u64().unwrap_or(0) as usize;
+                let limit = v["limit"].as_u64().unwrap_or(20).clamp(1, 100) as usize;
+                let items: Vec<_> = matches
+                    .into_iter()
+                    .skip(offset)
+                    .take(limit)
+                    .map(|(summary, name)| -> Result<Value> {
+                        let summary = self.store.submission_summary_metrics(summary)?;
+                        let mut item = serde_json::to_value(summary)?;
+                        item["problem_name"] = json!(name);
+                        Ok(item)
+                    })
+                    .collect::<Result<_>>()?;
+                Ok(json!({"items":items,"total":total}))
+            }
+
+            "submission_preview" => {
+                let submission: Submission =
+                    read_json(&self.store.submission_path(id, s(&v, "submission_id")?)?)?;
+                let cases: Vec<_> = submission.cases.iter().enumerate().map(|(index,c)| json!({"index":index,"suite":c.suite,"number":c.number,"verdict":c.result.verdict,"time_ms":c.result.time_ms,"memory_kb":c.result.memory_kb,"exit_code":c.result.exit_code})).collect();
+                Ok(
+                    json!({"verdict":submission.verdict,"source":submission.source,"cases":cases,"case_count":submission.cases.len()}),
+                )
+            }
+            "submission_data_preview" => self.store.evaluation_data_preview(
+                id,
+                s(&v, "submission_id")?,
+                v["case_index"].as_u64().context("case_index required")? as usize,
+                s(&v, "field")?,
+            ),
+            "submissions_compact" => {
+                let summaries = if id.is_empty() {
+                    self.store
+                        .all_submission_summaries()?
+                        .into_iter()
+                        .map(|(s, _)| s)
+                        .collect::<Vec<_>>()
+                } else {
+                    self.store.submission_summaries(id)?
+                };
+                let mut before = 0;
+                let mut after = 0;
+                for summary in &summaries {
+                    let sizes = self
+                        .store
+                        .compact_submission(&summary.problem_id, &summary.id)?;
+                    before += sizes.0;
+                    after += sizes.1;
+                }
+                Ok(
+                    json!({"records":summaries.len(),"record_bytes_before":before,"record_bytes_after":after}),
+                )
+            }
+            "submission_classify" => {
+                let path = self.store.submission_path(id, s(&v, "submission_id")?)?;
+                let mut record: Submission = read_json(&path)?;
+                ensure!(
+                    record.verdict != "JUDGING",
+                    "cannot classify a pending submission"
+                );
+                // Separate legacy evaluation payloads before rewriting their classification.
+                self.store.compact_submission(id, &record.id)?;
+                record = read_json(&path)?;
+                record.purpose = serde_json::from_value(v["purpose"].clone())?;
+                record.preparation = if record.purpose == SubmissionPurpose::Preparation {
+                    Some(PreparationRun {
+                        name: v["name"].as_str().unwrap_or("이전 검증 실행").into(),
+                        expected: None,
+                        answer_id: None,
+                        revision: None,
+                    })
+                } else {
+                    None
+                };
+                write_json(&path, &record)?;
+                let summary = SubmissionSummary::from(&record);
+                self.store.save_submission_summary(&summary)?;
+                Ok(json!(summary))
             }
             "submissions_list" => Ok(json!(self.store.records::<Submission>(id, "submissions")?)),
             "test_run" => {
                 let a = self.store.answer(id, s(&v, "answer_id")?)?;
-                let submission = self.submit(id, &a.language, &a.source)?;
+                let context = PreparationRun {
+                    name: a.id.clone(),
+                    expected: Some(a.expected.clone()),
+                    answer_id: Some(a.id.clone()),
+                    revision: Some(a.revision),
+                };
+                let submission = if v["async"].as_bool().unwrap_or(false) {
+                    self.submit_async_with_context(id, &a.language, &a.source, Some(context))?
+                } else {
+                    self.submit_preparation(id, &a.language, &a.source, context)?
+                };
                 Ok(
-                    json!({"expected":a.expected,"matched":submission.verdict==a.expected,"submission":submission}),
+                    json!({"expected":a.expected,"matched":if submission.verdict == "JUDGING" { None } else { Some(submission.verdict==a.expected) },"submission":submission}),
                 )
             }
             "ai_review" => Ok(json!(self.review(
@@ -501,7 +694,7 @@ pub fn serve_with_options(engine: Engine, addr: &str, open: bool) -> Result<()> 
             let response = tiny_http::Response::from_data(body)
                     .with_header(tiny_http::Header::from_bytes("Content-Type", mime).unwrap())
                     .with_header(tiny_http::Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap())
-                    .with_header(tiny_http::Header::from_bytes("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'").unwrap());
+                    .with_header(tiny_http::Header::from_bytes("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'").unwrap());
             let _ = request.respond(response);
             continue;
         }
@@ -602,6 +795,54 @@ pub fn serve_with_options(engine: Engine, addr: &str, open: bool) -> Result<()> 
             .with_header(
                 tiny_http::Header::from_bytes("Cross-Origin-Resource-Policy", "same-origin")
                     .unwrap(),
+            );
+            let _ = request.respond(response);
+            continue;
+        }
+        if request.method() == &tiny_http::Method::Get
+            && request.url().starts_with("/api/submission-download?")
+        {
+            let export = (|| -> Result<(fs::File, String)> {
+                if let Some(origin) = request.headers().iter().find(|h| h.field.equiv("Origin")) {
+                    ensure!(
+                        origin.value.as_str() == format!("http://{addr}"),
+                        "cross-origin request rejected"
+                    );
+                }
+                let url = reqwest::Url::parse(&format!("http://{addr}{}", request.url()))?;
+                let query: std::collections::HashMap<_, _> =
+                    url.query_pairs().into_owned().collect();
+                let id = query.get("problem_id").context("problem_id required")?;
+                let submission_id = query
+                    .get("submission_id")
+                    .context("submission_id required")?;
+                Ok((
+                    fs::File::open(engine.store.submission_path(id, submission_id)?)?,
+                    format!("{submission_id}.json"),
+                ))
+            })();
+            let response = match export {
+                Ok((file, filename)) => tiny_http::Response::from_file(file)
+                    .with_header(
+                        tiny_http::Header::from_bytes("Content-Type", "application/json").unwrap(),
+                    )
+                    .with_header(
+                        tiny_http::Header::from_bytes(
+                            "Content-Disposition",
+                            format!("attachment; filename=\"{filename}\""),
+                        )
+                        .unwrap(),
+                    )
+                    .boxed(),
+                Err(e) => {
+                    tiny_http::Response::from_string(json!({"error":e.to_string()}).to_string())
+                        .with_status_code(400)
+                        .boxed()
+                }
+            }
+            .with_header(tiny_http::Header::from_bytes("Cache-Control", "no-store").unwrap())
+            .with_header(
+                tiny_http::Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap(),
             );
             let _ = request.respond(response);
             continue;

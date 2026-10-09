@@ -3,9 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --noEmit && node build.mjs",
     "check": "tsc --noEmit",
-    "watch": "tsc --watch"
+    "watch": "node build.mjs --watch"
   },
-  "devDependencies": { "typescript": "5.9.3" }
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "monaco-editor": "0.52.2",
+    "typescript": "5.9.3"
+  }
 }

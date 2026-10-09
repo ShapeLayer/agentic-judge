@@ -9,6 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[derive(Clone)]
 pub struct Runtime {
     pub config: Config,
 }
@@ -22,6 +23,56 @@ impl Drop for Program {
     }
 }
 impl Runtime {
+    /// Reuse a compiled problem checker, retaining private working files per submission.
+    pub fn prepare_checker(&self, problem: &Path, source: &str) -> Result<Program> {
+        use fs2::FileExt;
+        let lang = self
+            .config
+            .languages
+            .get("cpp")
+            .context("unsupported checker language")?;
+        let key = hash(serde_json::to_vec(&(
+            source,
+            hash(include_bytes!("../vendor/testlib/testlib.h")),
+            lang,
+            self.config.container,
+            &self.config.container_command,
+            &self.config.image,
+            env!("CARGO_PKG_VERSION"),
+        ))?);
+        let root = problem.join(".checker-cache");
+        fs::create_dir_all(&root)?;
+        let lock = fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(root.join(".lock"))?;
+        lock.lock_exclusive()?;
+        let cached = root.join(&key);
+        if !cached.is_dir() {
+            // Failed compilations never publish a cache entry. Rename publishes atomically.
+            let compiled = self.prepare("cpp", source)?;
+            let staging = root.join(format!(".build-{}", uuid()));
+            fs::create_dir(&staging)?;
+            let publish = copy_tree(&compiled.dir, &staging)
+                .and_then(|()| Ok(fs::rename(&staging, &cached)?));
+            if publish.is_err() {
+                let _ = fs::remove_dir_all(&staging);
+            }
+            publish?;
+        }
+        fs::create_dir_all(&self.config.runtime_root)?;
+        let dir = self.config.runtime_root.canonicalize()?.join(uuid());
+        fs::create_dir(&dir)?;
+        let program = Program {
+            dir,
+            run: lang.run.clone(),
+        };
+        // Never write test input/output into the shared cache.
+        copy_tree(&cached, &program.dir)?;
+        Ok(program)
+    }
     pub fn prepare(&self, language: &str, source: &str) -> Result<Program> {
         let lang = self
             .config
@@ -267,6 +318,69 @@ fn copy_tree(from: &Path, to: &Path) -> Result<()> {
 mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
+
+    fn checker_runtime(root: &Path) -> Runtime {
+        let mut config = Config {
+            container: false,
+            runtime_root: root.join("runtime"),
+            ..Config::default()
+        };
+        config.languages.get_mut("cpp").unwrap().compile = vec![
+            "sh".into(),
+            "-c".into(),
+            "printf x >> \"$1\"; cp main.cpp program; chmod +x program".into(),
+            "compiler".into(),
+            root.join("compiles").to_str().unwrap().into(),
+        ];
+        Runtime { config }
+    }
+
+    #[test]
+    fn checker_cache_reuses_builds_and_invalidates_source_and_settings() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut rt = checker_runtime(dir.path());
+        let problem = dir.path().join("problem");
+        let source = "#!/bin/sh\nexit 0\n";
+        let first = rt.prepare_checker(&problem, source).unwrap();
+        fs::write(first.dir.join("input.txt"), "private input").unwrap();
+        drop(first);
+        let second = rt.prepare_checker(&problem, source).unwrap();
+        assert!(!second.dir.join("input.txt").exists());
+        assert_eq!(rt.run(&second, "", &[], 1000, 128).unwrap().verdict, "AC");
+        drop(second);
+        assert_eq!(fs::read(dir.path().join("compiles")).unwrap(), b"x");
+        drop(rt.prepare_checker(&problem, "#!/bin/sh\nexit 1\n").unwrap());
+        assert_eq!(fs::read(dir.path().join("compiles")).unwrap(), b"xx");
+        rt.config.image = "changed-runtime".into();
+        drop(rt.prepare_checker(&problem, source).unwrap());
+        assert_eq!(fs::read(dir.path().join("compiles")).unwrap(), b"xxx");
+        assert_eq!(fs::read_dir(&rt.config.runtime_root).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn concurrent_checker_preparation_compiles_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let rt = checker_runtime(dir.path());
+        let problem = dir.path().join("problem");
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(4));
+        let handles: Vec<_> = (0..4)
+            .map(|_| {
+                let rt = rt.clone();
+                let problem = problem.clone();
+                let barrier = barrier.clone();
+                thread::spawn(move || {
+                    barrier.wait();
+                    let p = rt.prepare_checker(&problem, "#!/bin/sh\nexit 0\n").unwrap();
+                    assert!(!p.dir.join("input.txt").exists());
+                    fs::write(p.dir.join("input.txt"), "private").unwrap();
+                })
+            })
+            .collect();
+        for handle in handles {
+            handle.join().unwrap();
+        }
+        assert_eq!(fs::read(dir.path().join("compiles")).unwrap(), b"x");
+    }
 
     #[test]
     fn container_engine_can_create_large_storage_files() {

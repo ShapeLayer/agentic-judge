@@ -1,5 +1,36 @@
 # Agentic Judge
 
+## 이 저장소에서 바로 공부하기
+
+```sh
+sh scripts/study.sh --open
+```
+
+빌드 후 학습 화면을 엽니다. Rust, Node.js 22 이상, npm, Python 3, clang++가
+필요하며 최초 의존성 설치에는 인터넷이 필요합니다. 기본 주소는
+`http://127.0.0.1:27121`입니다. 포트가 사용 중이면
+`sh scripts/study.sh --listen 127.0.0.1:27122 --open`으로 실행하세요.
+종료는 실행한 터미널에서 Ctrl+C입니다.
+
+첫 실행에 **첫 연습: A+B**와 테스트 4개를 등록합니다. 화면에서 문제를 선택하고
+Python 또는 C++ 코드를 작성해 제출하세요. 풀이 파일은 `solutions/`에 저장하고,
+문제와 제출 기록은 `.study/`에 유지됩니다. 이후 실행은 기존 문제를 변경하지 않습니다.
+학습 설정은 Podman 없이 본인이 작성한 코드를 컴퓨터에서 직접 실행합니다.
+외부의 신뢰할 수 없는 코드는 아래의 컨테이너 설정을 사용하세요.
+AI 연결은 필수가 아닙니다.
+
+
+### 백준 문제 아카이브 가져오기
+
+```sh
+cargo run --locked --example import_boj_archive -- config/study.toml /path/to/baekjoon-online-judge-problem-archive
+```
+
+문서만 `boj-문제번호`로 등록하며 기존 문제는 건너뜁니다. 정해와 채점 테스트는
+생성하지 않습니다. 원본의 불완전한 예제 및 가져오기 실패는
+`.study/data/boj-import-report.json`에서 확인합니다. 원본 아카이브는 변경하지 않습니다.
+제한을 해석할 수 없어 등록하지 못한 문서는 `.study/data/boj-unimported/`에 보관합니다.
+
 Agentic Judge는 문제를 제작하고 채점하는 로컬 애플리케이션입니다. 설치된 실행 파일 하나에 문제풀이 웹 화면, MCP 서버, 프롬프트와 testlib 리소스가 포함됩니다. 문제풀이 중에는 이 소스 저장소를 열 필요가 없습니다.
 
 ## 설치와 시작

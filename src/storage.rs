@@ -2,13 +2,19 @@ use crate::model::*;
 use anyhow::{Result, bail, ensure};
 use serde::{Serialize, de::DeserializeOwned};
 use std::{
+    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+    time::SystemTime,
 };
+
+type ProblemCatalog = BTreeMap<String, (SystemTime, u64, Manifest)>;
 
 #[derive(Clone)]
 pub struct Store {
     pub root: PathBuf,
+    catalog: Arc<Mutex<ProblemCatalog>>,
 }
 pub fn identifier(s: &str) -> Result<()> {
     ensure!(
@@ -39,6 +45,7 @@ impl Store {
         fs::create_dir_all(root)?;
         Ok(Self {
             root: root.canonicalize()?,
+            catalog: Arc::new(Mutex::new(BTreeMap::new())),
         })
     }
     pub fn problem(&self, id: &str) -> Result<PathBuf> {
@@ -102,6 +109,59 @@ impl Store {
         result.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(result)
     }
+    /// Reuse parsed manifests while checking file stamps, including other sessions' imports.
+    pub fn search(
+        &self,
+        query: &str,
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<(String, String)>, usize)> {
+        let directory = self.root.join("problems");
+        let mut catalog = self
+            .catalog
+            .lock()
+            .map_err(|_| anyhow::anyhow!("problem catalog unavailable"))?;
+        let mut seen = std::collections::BTreeSet::new();
+        if directory.exists() {
+            for entry in fs::read_dir(directory)? {
+                let entry = entry?;
+                if !entry.file_type()?.is_dir() {
+                    continue;
+                }
+                let id = entry.file_name().to_string_lossy().into_owned();
+                let metadata = fs::metadata(self.problem(&id)?.join("manifest.toml"))?;
+                let stamp = metadata.modified()?;
+                let length = metadata.len();
+                if !catalog.get(&id).is_some_and(|(old_stamp, old_length, _)| {
+                    *old_stamp == stamp && *old_length == length
+                }) {
+                    catalog.insert(id.clone(), (stamp, length, self.manifest(&id)?));
+                }
+                seen.insert(id);
+            }
+        }
+        catalog.retain(|id, _| seen.contains(id));
+        let query = query.to_lowercase();
+        let mut total = 0;
+        let mut items = vec![];
+        for (_, _, manifest) in catalog.values() {
+            if format!(
+                "{} {} {}",
+                manifest.id,
+                manifest.name,
+                manifest.tags.join(" ")
+            )
+            .to_lowercase()
+            .contains(&query)
+            {
+                if total >= offset && items.len() < limit {
+                    items.push((manifest.id.clone(), manifest.name.clone()));
+                }
+                total += 1;
+            }
+        }
+        Ok((items, total))
+    }
     pub fn answer(&self, problem: &str, id: &str) -> Result<Answer> {
         identifier(id)?;
         read_json(
@@ -117,6 +177,17 @@ impl Store {
         language: &str,
         source: &str,
         expected: &str,
+    ) -> Result<Answer> {
+        self.save_answer_with_model(problem, id, language, source, expected, None)
+    }
+    pub fn save_answer_with_model(
+        &self,
+        problem: &str,
+        id: Option<&str>,
+        language: &str,
+        source: &str,
+        expected: &str,
+        generated_by_model: Option<String>,
     ) -> Result<Answer> {
         ensure!(
             ["AC", "WA", "RE", "TLE", "MLE"].contains(&expected),
@@ -134,10 +205,12 @@ impl Store {
             && a.source == source
             && a.language == language
             && a.expected == expected
+            && a.generated_by_model == generated_by_model
         {
             return Ok(a.clone());
         }
         let a = Answer {
+            generated_by_model,
             id,
             revision: old.map_or(1, |a| a.revision + 1),
             language: language.into(),
@@ -181,6 +254,7 @@ impl Store {
             self.save_manifest(&m)?;
         }
         let meta = TestMeta {
+            generated_by_model: None,
             suite: suite.into(),
             number: n,
             input_hash: hash(input),
@@ -239,6 +313,236 @@ impl Store {
             }
         }
         Ok(true)
+    }
+    pub fn submission_path(&self, problem_id: &str, submission_id: &str) -> Result<PathBuf> {
+        identifier(submission_id)?;
+        let directory = self.problem(problem_id)?.join("submissions");
+        let path = directory.join(format!("{submission_id}.json"));
+        let problem = self.problem(problem_id)?.canonicalize()?;
+        let canonical_directory = directory.canonicalize()?;
+        ensure!(
+            canonical_directory.starts_with(&problem)
+                && path.canonicalize()?.starts_with(&canonical_directory),
+            "record outside problem storage"
+        );
+        Ok(path)
+    }
+    pub fn persist_case_data(
+        &self,
+        problem_id: &str,
+        submission_id: &str,
+        index: usize,
+        case: &mut CaseResult,
+    ) -> Result<()> {
+        identifier(submission_id)?;
+        let problem = self.problem(problem_id)?.canonicalize()?;
+        let mut directory = problem.clone();
+        for component in [
+            "submission-data".to_owned(),
+            submission_id.to_owned(),
+            index.to_string(),
+        ] {
+            directory.push(component);
+            if directory.exists() {
+                ensure!(
+                    directory.canonicalize()?.starts_with(&problem),
+                    "evaluation data outside problem storage"
+                );
+            } else {
+                fs::create_dir(&directory)?;
+            }
+        }
+        for (field, value) in [
+            ("stdout", &mut case.result.stdout),
+            ("stderr", &mut case.result.stderr),
+            ("checker", &mut case.checker_message),
+        ] {
+            let path = directory.join(format!("{field}.txt"));
+            // Migration is idempotent: an already separated output must not be overwritten by an empty field.
+            if !value.is_empty() || !path.exists() {
+                atomic(&path, value.as_bytes())?;
+            }
+            *value = String::new();
+        }
+        if case.number > 0 {
+            if case.input_hash.is_none() {
+                case.input_hash = Some(hash(case.input.as_bytes()));
+            }
+            if case.expected_output_hash.is_none() {
+                case.expected_output_hash = Some(hash(case.expected_output.as_bytes()));
+            }
+        }
+        case.input = String::new();
+        case.expected_output = String::new();
+        Ok(())
+    }
+    pub fn compact_submission(&self, problem_id: &str, submission_id: &str) -> Result<(u64, u64)> {
+        let path = self.submission_path(problem_id, submission_id)?;
+        let before = fs::metadata(&path)?.len();
+        let mut record: Submission = read_json(&path)?;
+        if record.format_version >= 2 {
+            return Ok((before, before));
+        }
+        ensure!(
+            record.problem_id == problem_id && record.id == submission_id,
+            "submission identity mismatch"
+        );
+        for (index, case) in record.cases.iter_mut().enumerate() {
+            self.persist_case_data(problem_id, submission_id, index, case)?;
+        }
+        record.format_version = 2;
+        write_json(&path, &record)?;
+        self.save_submission_summary(&SubmissionSummary::from(&record))?;
+        Ok((before, fs::metadata(path)?.len()))
+    }
+    pub fn evaluation_data_preview(
+        &self,
+        problem_id: &str,
+        submission_id: &str,
+        index: usize,
+        field: &str,
+    ) -> Result<serde_json::Value> {
+        use std::io::Read;
+        let record: Submission = read_json(&self.submission_path(problem_id, submission_id)?)?;
+        let case = record
+            .cases
+            .get(index)
+            .ok_or_else(|| anyhow::anyhow!("case index out of range"))?;
+        let problem = self.problem(problem_id)?.canonicalize()?;
+        let (path, current_test) = match field {
+            "input" | "expected_output" => {
+                ensure!(case.number > 0, "compile result has no test data");
+                (
+                    self.test_path(
+                        problem_id,
+                        &case.suite,
+                        case.number,
+                        if field == "input" { "in" } else { "out" },
+                    )?,
+                    true,
+                )
+            }
+            "stdout" | "stderr" | "checker" => (
+                problem.join(format!(
+                    "submission-data/{submission_id}/{index}/{field}.txt"
+                )),
+                false,
+            ),
+            _ => bail!("unknown evaluation data field"),
+        };
+        if !path.exists() {
+            return Ok(
+                serde_json::json!({"path":path,"exists":false,"text":"","bytes":0,"truncated":false,"current_test":current_test}),
+            );
+        }
+        let canonical = path.canonicalize()?;
+        ensure!(
+            canonical.starts_with(&problem),
+            "evaluation data outside problem storage"
+        );
+        let bytes = fs::metadata(&canonical)?.len();
+        let mut prefix = vec![];
+        fs::File::open(&canonical)?
+            .take(4096 * 4)
+            .read_to_end(&mut prefix)?;
+        let valid = match std::str::from_utf8(&prefix) {
+            Ok(value) => value,
+            Err(error) => std::str::from_utf8(&prefix[..error.valid_up_to()])?,
+        };
+        let text = valid.chars().take(4096).collect::<String>();
+        let truncated = (text.len() as u64) < bytes;
+        Ok(
+            serde_json::json!({"path":canonical,"exists":true,"text":text,"bytes":bytes,"truncated":truncated,"current_test":current_test}),
+        )
+    }
+    pub fn save_submission_summary(&self, summary: &SubmissionSummary) -> Result<()> {
+        identifier(&summary.id)?;
+        write_json(
+            &self
+                .problem(&summary.problem_id)?
+                .join(format!("submission-summaries/{}.json", summary.id)),
+            summary,
+        )
+    }
+    pub fn submission_summary_metrics(
+        &self,
+        summary: SubmissionSummary,
+    ) -> Result<SubmissionSummary> {
+        if summary.source_bytes.is_some() {
+            return Ok(summary);
+        }
+        // Upgrade only records on the requested page; subsequent reads use the small cache.
+        let record: Submission =
+            read_json(&self.submission_path(&summary.problem_id, &summary.id)?)?;
+        let updated = SubmissionSummary::from(&record);
+        self.save_submission_summary(&updated)?;
+        Ok(updated)
+    }
+    pub fn submission_summaries(&self, id: &str) -> Result<Vec<SubmissionSummary>> {
+        let directory = self.problem(id)?.join("submissions");
+        if !directory.exists() {
+            return Ok(vec![]);
+        }
+        let mut summaries = vec![];
+        for entry in fs::read_dir(directory)? {
+            let entry = entry?;
+            if entry.path().extension().is_none_or(|ext| ext != "json") {
+                continue;
+            }
+            let submission_id = entry
+                .path()
+                .file_stem()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned();
+            let path = self.submission_path(id, &submission_id)?;
+            let cache = self
+                .problem(id)?
+                .join(format!("submission-summaries/{submission_id}.json"));
+            let summary: SubmissionSummary = if cache.exists()
+                && fs::metadata(&cache)?.modified()? >= fs::metadata(&path)?.modified()?
+            {
+                read_json(&cache)?
+            } else {
+                let summary = read_json::<SubmissionSummary>(&path)?;
+                self.save_submission_summary(&summary)?;
+                summary
+            };
+            summaries.push(summary);
+        }
+        summaries.sort_by(|a, b| {
+            b.created_at
+                .cmp(&a.created_at)
+                .then_with(|| b.id.cmp(&a.id))
+        });
+        Ok(summaries)
+    }
+    pub fn all_submission_summaries(&self) -> Result<Vec<(SubmissionSummary, String)>> {
+        let directory = self.root.join("problems");
+        if !directory.exists() {
+            return Ok(vec![]);
+        }
+        let mut result = vec![];
+        for entry in fs::read_dir(directory)? {
+            let entry = entry?;
+            if !entry.file_type()?.is_dir() || !entry.path().join("submissions").is_dir() {
+                continue;
+            }
+            let id = entry.file_name().to_string_lossy().into_owned();
+            let name = self.manifest(&id)?.name;
+            result.extend(
+                self.submission_summaries(&id)?
+                    .into_iter()
+                    .map(|s| (s, name.clone())),
+            );
+        }
+        result.sort_by(|(a, _), (b, _)| {
+            b.created_at
+                .cmp(&a.created_at)
+                .then_with(|| b.id.cmp(&a.id))
+                .then_with(|| a.problem_id.cmp(&b.problem_id))
+        });
+        Ok(result)
     }
     pub fn records<T: DeserializeOwned>(&self, id: &str, kind: &str) -> Result<Vec<T>> {
         if !["reviews", "submissions", "validator-runs"].contains(&kind) {

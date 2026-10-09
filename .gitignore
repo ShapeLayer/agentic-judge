@@ -33,3 +33,6 @@ rustc-ice-*.txt
 # TypeScript dependencies and browser output
 /ui/node_modules/
 /ui/dist/
+
+# Local study data
+/.study/

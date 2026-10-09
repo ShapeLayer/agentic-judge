@@ -9,6 +9,14 @@ pub fn asset(path: &str) -> Option<(&'static [u8], &'static str)> {
             include_bytes!("../ui/dist/app/app.js"),
             "text/javascript; charset=utf-8",
         ),
+        "/editor.css" => (
+            include_bytes!("../ui/dist/app/app.css"),
+            "text/css; charset=utf-8",
+        ),
+        "/editor.worker.js" => (
+            include_bytes!("../ui/dist/app/editor.worker.js"),
+            "text/javascript; charset=utf-8",
+        ),
         "/app.css" => (
             include_bytes!("../ui/app/app.css"),
             "text/css; charset=utf-8",

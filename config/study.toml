@@ -1,0 +1,15 @@
+# 본인이 작성한 코드를 직접 실행하는 학습용 설정
+storage_root = "../.study/data"
+runtime_root = "../.study/run"
+workspace_root = "../solutions"
+container = false
+
+[languages.python]
+filename = "main.py"
+compile = []
+run = ["python3", "main.py"]
+
+[languages.cpp]
+filename = "main.cpp"
+compile = ["clang++", "-std=c++20", "-O2", "-I.", "main.cpp", "-o", "program"]
+run = ["./program"]

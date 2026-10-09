@@ -133,7 +133,7 @@
       "additionalProperties": false,
       "properties": {
         "expect_valid": {
-          "type": "string"
+          "type": "boolean"
         },
         "input": {
           "type": "string"
@@ -160,6 +160,29 @@
       "type": "object"
     },
     "name": "problems_list"
+  },
+  {
+    "description": "Search problem IDs, names and tags with bounded pagination",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "query": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "name": "problems_search"
   },
   {
     "description": "Create a problem with a general test suite",
@@ -323,6 +346,9 @@
         "expected": {
           "type": "string"
         },
+        "generated_by_model": {
+          "type": "string"
+        },
         "language": {
           "type": "string"
         },
@@ -345,6 +371,22 @@
       "type": "object"
     },
     "name": "answer_save"
+  },
+  {
+    "description": "Read generation models and current review model records for each saved answer and test",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id"
+      ],
+      "type": "object"
+    },
+    "name": "artifact_models"
   },
   {
     "description": "List current UUID answers",
@@ -387,6 +429,9 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "generated_by_model": {
+          "type": "string"
+        },
         "input": {
           "type": "string"
         },
@@ -492,17 +537,32 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "async": {
+          "type": "boolean"
+        },
+        "expected": {
+          "type": "string"
+        },
         "file": {
           "type": "string"
         },
         "language": {
           "type": "string"
         },
+        "name": {
+          "type": "string"
+        },
         "problem_id": {
+          "type": "string"
+        },
+        "purpose": {
           "type": "string"
         },
         "source": {
           "type": "string"
+        },
+        "summary_only": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -512,6 +572,104 @@
       "type": "object"
     },
     "name": "submit"
+  },
+  {
+    "description": "Read paginated submission summaries across all problems or one problem without large test payloads",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "type": "string"
+        },
+        "limit": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "purpose": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "verdict": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "name": "submissions_page"
+  },
+  {
+    "description": "Read submitted code and evaluation metrics without test data",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        },
+        "submission_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "submission_id"
+      ],
+      "type": "object"
+    },
+    "name": "submission_preview"
+  },
+  {
+    "description": "Read the first 4096 characters of one evaluation file and its absolute path",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "case_index": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "field": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "submission_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "submission_id",
+        "case_index",
+        "field"
+      ],
+      "type": "object"
+    },
+    "name": "submission_data_preview"
+  },
+  {
+    "description": "Separate evaluation data from legacy records, keeping code and verdicts",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "problem_id": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "name": "submissions_compact"
   },
   {
     "description": "Read submission attempts and per-test verdicts",
@@ -537,6 +695,9 @@
         "answer_id": {
           "type": "string"
         },
+        "async": {
+          "type": "boolean"
+        },
         "problem_id": {
           "type": "string"
         }
@@ -548,6 +709,33 @@
       "type": "object"
     },
     "name": "test_run"
+  },
+  {
+    "description": "Move an existing completed run between solving and preparation history",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "purpose": {
+          "type": "string"
+        },
+        "submission_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem_id",
+        "submission_id",
+        "purpose"
+      ],
+      "type": "object"
+    },
+    "name": "submission_classify"
   },
   {
     "description": "Independently review answer:<uuid> or test:<suite>:<number> without editing",

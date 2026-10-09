@@ -126,6 +126,9 @@ pub struct Manifest {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Answer {
+    /// Caller-declared generation model; absent for legacy or unknown sources.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_by_model: Option<String>,
     pub id: String,
     pub revision: u64,
     pub language: String,
@@ -135,6 +138,8 @@ pub struct Answer {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TestMeta {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_by_model: Option<String>,
     pub suite: String,
     pub number: u64,
     pub input_hash: String,
@@ -170,7 +175,9 @@ pub struct RunResult {
     pub verdict: String,
     pub time_ms: u64,
     pub memory_kb: u64,
+    #[serde(default)]
     pub stdout: String,
+    #[serde(default)]
     pub stderr: String,
     pub exit_code: Option<i32>,
 }
@@ -178,15 +185,53 @@ pub struct RunResult {
 pub struct CaseResult {
     pub suite: String,
     pub number: u64,
+    #[serde(serialize_with = "serialize_evaluation")]
     pub result: RunResult,
+    #[serde(default, skip_serializing)]
     pub checker_message: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub input: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub expected_output: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_output_hash: Option<String>,
+}
+fn serialize_evaluation<S: serde::Serializer>(
+    result: &RunResult,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeStruct;
+    let mut fields = serializer.serialize_struct("EvaluationResult", 4)?;
+    fields.serialize_field("verdict", &result.verdict)?;
+    fields.serialize_field("time_ms", &result.time_ms)?;
+    fields.serialize_field("memory_kb", &result.memory_kb)?;
+    fields.serialize_field("exit_code", &result.exit_code)?;
+    fields.end()
+}
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SubmissionPurpose {
+    #[default]
+    Solve,
+    Preparation,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PreparationRun {
+    pub name: String,
+    pub expected: Option<String>,
+    pub answer_id: Option<String>,
+    pub revision: Option<u64>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Submission {
+    #[serde(default)]
+    pub purpose: SubmissionPurpose,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preparation: Option<PreparationRun>,
+    #[serde(default)]
+    pub format_version: u32,
     pub id: String,
     pub problem_id: String,
     pub language: String,
@@ -195,6 +240,52 @@ pub struct Submission {
     pub generation: String,
     pub verdict: String,
     pub cases: Vec<CaseResult>,
+}
+/// Lightweight metadata; serde skips source and large case payloads when reading old records.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SubmissionSummary {
+    #[serde(default)]
+    pub time_ms: Option<u64>,
+    #[serde(default)]
+    pub memory_kb: Option<u64>,
+    #[serde(default)]
+    pub source_bytes: Option<u64>,
+    #[serde(default)]
+    pub case_count: Option<u64>,
+    #[serde(default)]
+    pub passed_count: Option<u64>,
+    #[serde(default)]
+    pub purpose: SubmissionPurpose,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preparation: Option<PreparationRun>,
+    pub id: String,
+    pub problem_id: String,
+    pub language: String,
+    pub created_at: u64,
+    pub verdict: String,
+}
+impl From<&Submission> for SubmissionSummary {
+    fn from(s: &Submission) -> Self {
+        Self {
+            time_ms: s.cases.iter().map(|c| c.result.time_ms).max(),
+            memory_kb: s.cases.iter().map(|c| c.result.memory_kb).max(),
+            source_bytes: Some(s.source.len() as u64),
+            case_count: Some(s.cases.iter().filter(|c| c.number > 0).count() as u64),
+            passed_count: Some(
+                s.cases
+                    .iter()
+                    .filter(|c| c.number > 0 && c.result.verdict == "AC")
+                    .count() as u64,
+            ),
+            purpose: s.purpose.clone(),
+            preparation: s.preparation.clone(),
+            id: s.id.clone(),
+            problem_id: s.problem_id.clone(),
+            language: s.language.clone(),
+            created_at: s.created_at,
+            verdict: s.verdict.clone(),
+        }
+    }
 }
 pub fn now() -> u64 {
     std::time::SystemTime::now()

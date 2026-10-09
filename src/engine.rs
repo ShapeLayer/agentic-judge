@@ -3,6 +3,7 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::fs;
 
+#[derive(Clone)]
 pub struct Engine {
     pub store: Store,
     pub runtime: Runtime,
@@ -109,23 +110,99 @@ impl Engine {
         }
         Ok(json!({"generated":count,"ready":self.store.ready(id)?,"generation":generation}))
     }
-    pub fn submit(&self, id: &str, language: &str, source: &str) -> Result<Submission> {
+    fn create_submission(
+        &self,
+        id: &str,
+        language: &str,
+        source: &str,
+        preparation: Option<PreparationRun>,
+    ) -> Result<Submission> {
         ensure!(
             self.store.ready(id)?,
             "problem is not ready; regenerate answers"
         );
-        let m = self.store.manifest(id)?;
-        let mut submission = Submission {
+        self.store.manifest(id)?;
+        ensure!(
+            self.runtime.config.languages.contains_key(language),
+            "unsupported language"
+        );
+        let submission = Submission {
+            purpose: if preparation.is_some() {
+                SubmissionPurpose::Preparation
+            } else {
+                SubmissionPurpose::Solve
+            },
+            preparation,
+            format_version: 2,
             id: uuid(),
             problem_id: id.into(),
             language: language.into(),
             source: source.into(),
             created_at: now(),
             generation: self.store.generation(id)?,
-            verdict: "AC".into(),
+            verdict: "JUDGING".into(),
             cases: vec![],
         };
-        match self.runtime.prepare(language, source) {
+        self.save_submission(&submission)?;
+        Ok(submission)
+    }
+    pub fn submit(&self, id: &str, language: &str, source: &str) -> Result<Submission> {
+        self.judge_submission(self.create_submission(id, language, source, None)?)
+    }
+    pub fn submit_preparation(
+        &self,
+        id: &str,
+        language: &str,
+        source: &str,
+        context: PreparationRun,
+    ) -> Result<Submission> {
+        self.judge_submission(self.create_submission(id, language, source, Some(context))?)
+    }
+    pub fn submit_async(&self, id: &str, language: &str, source: &str) -> Result<Submission> {
+        self.submit_async_with_context(id, language, source, None)
+    }
+    pub fn submit_async_with_context(
+        &self,
+        id: &str,
+        language: &str,
+        source: &str,
+        preparation: Option<PreparationRun>,
+    ) -> Result<Submission> {
+        let submission = self.create_submission(id, language, source, preparation)?;
+        let engine = self.clone();
+        let pending = submission.clone();
+        std::thread::Builder::new()
+            .name(format!("judge-{}", submission.id))
+            .spawn(move || {
+                if let Err(error) = engine.judge_submission(pending.clone()) {
+                    eprintln!("judging {} failed: {error:#}", pending.id);
+                    let mut failed = pending;
+                    failed.verdict = "JUDGE_ERROR".into();
+                    if let Err(error) = engine.save_submission(&failed) {
+                        eprintln!("saving failed submission {}: {error:#}", failed.id);
+                    }
+                }
+            })
+            .map_err(|error| {
+                let mut failed = submission.clone();
+                failed.verdict = "JUDGE_ERROR".into();
+                let _ = self.save_submission(&failed);
+                error
+            })?;
+        Ok(submission)
+    }
+    fn judge_submission(&self, mut submission: Submission) -> Result<Submission> {
+        let id = submission.problem_id.as_str();
+        let m = self.store.manifest(id)?;
+        ensure!(
+            self.store.ready(id)? && self.store.generation(id)? == submission.generation,
+            "problem changed before judging"
+        );
+        submission.verdict = "AC".into();
+        match self
+            .runtime
+            .prepare(&submission.language, &submission.source)
+        {
             Err(e) => {
                 submission.verdict = "CE".into();
                 submission.cases.push(CaseResult {
@@ -142,6 +219,8 @@ impl Engine {
                     checker_message: String::new(),
                     input: String::new(),
                     expected_output: String::new(),
+                    input_hash: None,
+                    expected_output_hash: None,
                 });
             }
             Ok(p) => {
@@ -152,10 +231,10 @@ impl Engine {
                         canonical.starts_with(self.store.problem(id)?.canonicalize()?),
                         "checker outside problem"
                     );
-                    Some(
-                        self.runtime
-                            .prepare("cpp", &fs::read_to_string(canonical)?)?,
-                    )
+                    Some(self.runtime.prepare_checker(
+                        &self.store.problem(id)?,
+                        &fs::read_to_string(canonical)?,
+                    )?)
                 } else if let Some(name) = m.checker.strip_prefix("testlib:") {
                     identifier(name)?;
                     let source = crate::builtin::COMMON_CHECKERS
@@ -163,7 +242,10 @@ impl Engine {
                         .find(|(id, _)| *id == name)
                         .context("unknown built-in testlib checker")?
                         .1;
-                    Some(self.runtime.prepare("cpp", source)?)
+                    Some(
+                        self.runtime
+                            .prepare_checker(&self.store.problem(id)?, source)?,
+                    )
                 } else {
                     ensure!(
                         ["tokens", "exact", "lines"].contains(&m.checker.as_str()),
@@ -221,25 +303,43 @@ impl Engine {
                     if submission.verdict == "AC" && result.verdict != "AC" {
                         submission.verdict = result.verdict.clone();
                     }
-                    submission.cases.push(CaseResult {
+                    let mut case = CaseResult {
                         suite: t.suite,
                         number: t.number,
                         result,
                         checker_message: message,
                         input,
                         expected_output: expected,
-                    });
+                        input_hash: Some(t.input_hash),
+                        expected_output_hash: t.output_hash,
+                    };
+                    self.store.persist_case_data(
+                        id,
+                        &submission.id,
+                        submission.cases.len(),
+                        &mut case,
+                    )?;
+                    submission.cases.push(case);
                 }
             }
         }
+        if submission.verdict == "CE" {
+            self.store
+                .persist_case_data(id, &submission.id, 0, &mut submission.cases[0])?;
+        }
+        self.save_submission(&submission)?;
+        Ok(submission)
+    }
+    fn save_submission(&self, submission: &Submission) -> Result<()> {
         write_json(
             &self
                 .store
-                .problem(id)?
+                .problem(&submission.problem_id)?
                 .join(format!("submissions/{}.json", submission.id)),
-            &submission,
+            submission,
         )?;
-        Ok(submission)
+        self.store
+            .save_submission_summary(&SubmissionSummary::from(submission))
     }
     pub fn fingerprint(&self, id: &str, target: &str) -> Result<String> {
         let m = self.store.manifest(id)?;

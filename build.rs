@@ -2,6 +2,7 @@ use std::{env, fs, path::PathBuf};
 fn main() {
     for path in [
         "ui/app",
+        "ui/build.mjs",
         "ui/styles/tokens.css",
         "ui/tsconfig.json",
         "ui/package.json",
