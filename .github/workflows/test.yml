@@ -21,7 +21,23 @@ jobs:
       - name: Install rootless Podman
         run: |
           sudo apt-get update
-          sudo apt-get install -y podman uidmap slirp4netns
+          sudo apt-get install -y podman uidmap slirp4netns build-essential pkg-config libglib2.0-dev libsystemd-dev
+      # Ubuntu 24.04 ships conmon 2.1.10, which can miss cgroup v2 OOM events.
+      # The fix in conmon 2.2 prevents memory-limit failures being reported as RE.
+      - uses: actions/checkout@v4
+        with:
+          repository: containers/conmon
+          ref: c8cc2c4db27531bd4e084ce7857f73cd21ee639d # v2.2.1
+          path: .ci/conmon
+      - name: Install conmon with reliable cgroup v2 OOM detection
+        run: |
+          make -C .ci/conmon -j2
+          sudo make -C .ci/conmon install.podman
+          mkdir -p "$HOME/.config/containers"
+          cat > "$HOME/.config/containers/containers.conf" <<'EOF'
+          [engine]
+          conmon_path = ["/usr/local/libexec/podman/conmon"]
+          EOF
           podman info
       - run: cargo run --locked -- runtime-install
       - run: cargo test --locked --test container -- --ignored

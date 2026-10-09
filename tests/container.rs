@@ -48,7 +48,12 @@ fn podman_limits_and_languages() {
     let p = rt
         .prepare("python", "x=bytearray(256*1024*1024); print(len(x))")
         .unwrap();
-    assert_eq!(rt.run(&p, "", &[], 10000, 64).unwrap().verdict, "MLE");
+    let r = rt.run(&p, "", &[], 10000, 64).unwrap();
+    assert_eq!(
+        r.verdict, "MLE",
+        "exit_code={:?}, stderr={}",
+        r.exit_code, r.stderr
+    );
     let p = rt.prepare("python", "while True: pass").unwrap();
     assert_eq!(rt.run(&p, "", &[], 2000, 128).unwrap().verdict, "TLE");
     let p=rt.prepare("python","import socket\ns=socket.socket();s.settimeout(1)\ntry:\n s.connect(('1.1.1.1',80))\n raise AssertionError('network accessible')\nexcept OSError:\n print('isolated')").unwrap();
