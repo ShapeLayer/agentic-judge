@@ -2,10 +2,42 @@
 use serde_json::{Value, json};
 use std::{
     fs,
-    io::{BufRead, BufReader, Write},
+    io::{self, BufRead, BufReader, Write},
     path::PathBuf,
     process::{Child, Command, Output, Stdio},
 };
+
+trait InstallationCommandExt {
+    fn spawn_ready(&mut self) -> io::Result<Child>;
+    fn output_ready(&mut self) -> io::Result<Output>;
+}
+
+impl InstallationCommandExt for Command {
+    fn spawn_ready(&mut self) -> io::Result<Child> {
+        // Parallel test processes can temporarily inherit the writable handle
+        // used to copy this executable until they exec, even with CLOEXEC.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            match self.spawn() {
+                Err(error)
+                    if error.kind() == io::ErrorKind::ExecutableFileBusy
+                        && std::time::Instant::now() < deadline =>
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                result => return result,
+            }
+        }
+    }
+
+    fn output_ready(&mut self) -> io::Result<Output> {
+        self.stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn_ready()?
+            .wait_with_output()
+    }
+}
 
 struct Installation {
     _temp: tempfile::TempDir,
@@ -36,7 +68,7 @@ impl Installation {
         cmd
     }
     fn run(&self, args: &[&str]) -> Output {
-        let out = self.command().args(args).output().unwrap();
+        let out = self.command().args(args).output_ready().unwrap();
         assert!(
             out.status.success(),
             "{:?}: {}",
@@ -83,7 +115,7 @@ fn first_run_is_user_scoped_and_does_not_trust_cwd_config() {
     let out = app
         .command()
         .args(["call", "workspace_read", "{\"path\":\"judge.toml\"}"])
-        .output()
+        .output_ready()
         .unwrap();
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("no workspace selected"));
@@ -92,7 +124,7 @@ fn first_run_is_user_scoped_and_does_not_trust_cwd_config() {
     assert!(
         !app.command()
             .arg("init-config")
-            .output()
+            .output_ready()
             .unwrap()
             .status
             .success()
@@ -108,7 +140,7 @@ fn concurrent_first_runs_read_complete_configuration() {
                 .args(["call", "capabilities"])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
-                .spawn()
+                .spawn_ready()
                 .unwrap()
         })
         .collect();
@@ -214,7 +246,7 @@ fn external_workspace_and_scratch_submit_and_drafts_survive_restart() {
                     "workspace_read",
                     &json!({"path":path}).to_string()
                 ])
-                .output()
+                .output_ready()
                 .unwrap()
                 .status
                 .success()
@@ -256,7 +288,7 @@ fn explicit_config_resolves_paths_and_scratch_overrides_workspace() {
     assert!(
         !app.command()
             .args(["call", "--workspace", ".", "--scratch", "capabilities"])
-            .output()
+            .output_ready()
             .unwrap()
             .status
             .success()
@@ -276,7 +308,7 @@ fn installed_http_serves_embedded_app_and_preserves_boundaries() {
         app.command()
             .args(["serve", "--listen", "127.0.0.1:0"])
             .stderr(Stdio::piped())
-            .spawn()
+            .spawn_ready()
             .unwrap(),
     );
     let mut line = String::new();
@@ -458,7 +490,7 @@ fn installed_mcp_uses_selected_folder_and_embedded_prompts() {
         .args(["mcp", "--workspace", "."])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .spawn()
+        .spawn_ready()
         .unwrap();
     let mut stdin = child.stdin.take().unwrap();
     for request in [
@@ -509,7 +541,7 @@ fn runtime_install_uses_embedded_recipe_and_checks_loaded_image() {
         .command()
         .args(["runtime-install", "--config", config.to_str().unwrap()])
         .env("JUDGE_RECIPE_CAPTURE", &recipe)
-        .output()
+        .output_ready()
         .unwrap();
     assert!(
         out.status.success(),
@@ -548,7 +580,7 @@ fn runtime_install_uses_embedded_recipe_and_checks_loaded_image() {
                 "load",
                 archive.to_str().unwrap()
             ])
-            .output()
+            .output_ready()
             .unwrap()
             .status
             .success()
@@ -563,7 +595,7 @@ fn doctor_reports_missing_runtime_without_claiming_success() {
     let output = app
         .command()
         .args(["doctor", "--config", config.to_str().unwrap()])
-        .output()
+        .output_ready()
         .unwrap();
     assert!(!output.status.success());
     let report: Value = serde_json::from_slice(&output.stdout).unwrap();
@@ -587,7 +619,7 @@ fn local_doctor_checks_configured_commands() {
     assert!(
         !app.command()
             .args(["doctor", "--config", config.to_str().unwrap()])
-            .output()
+            .output_ready()
             .unwrap()
             .status
             .success()
